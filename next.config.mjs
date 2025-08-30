@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Allow requests from Cloud Workstations, Firebase, and localhost
+  // Allow requests from Cloud Workstations and localhost
   allowedDevOrigins: [
     'localhost',
     '*.cloudworkstations.dev',
@@ -9,7 +9,14 @@ const nextConfig = {
     '*.web.app',
   ],
   experimental: {
-    serverComponentsExternalPackages: ['@genkit-ai/core', '@genkit-ai/googleai', 'firebase-admin']
+    serverComponentsExternalPackages: ['@genkit-ai/core', '@genkit-ai/googleai']
+  },
+  webpack: (config) => {
+    config.externals.push({
+      'utf-8-validate': 'commonjs utf-8-validate',
+      'bufferutil': 'commonjs bufferutil',
+    });
+    return config;
   },
 };
 

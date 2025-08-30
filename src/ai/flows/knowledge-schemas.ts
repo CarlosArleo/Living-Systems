@@ -5,7 +5,7 @@
 
 import { z } from 'zod';
 import { ai, googleAI } from '../genkit';
-import { defineFirestoreRetriever, type CollectionSource } from '@genkit-ai/firebase';
+import { defineFirestoreRetriever, type FirestoreSource } from '@genkit-ai/firebase';
 import * as admin from 'firebase-admin';
 
 // This file does not re-initialize firebase-admin, it assumes it's been
@@ -52,7 +52,7 @@ export function createPlaceSpecificRetriever(placeId: string) {
   const knowledgeCollection = db.collection('knowledge');
   
   // The source query is updated to filter by the provided placeId.
-  const source: CollectionSource = {
+  const source: FirestoreSource = {
     query: knowledgeCollection.where('placeId', '==', placeId),
     contentField: 'text',
     vectorField: 'embedding',
