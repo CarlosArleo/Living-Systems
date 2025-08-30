@@ -1,0 +1,48 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Helper Functions ---
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // --- Rules for 'users' Collection ---
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // --- Rules for 'places' Collection ---
+    match /places/{placeId} {
+      allow get, list: if isAuthenticated();
+
+      // Allow creation only if the user is authenticated and is the owner.
+      // Enforce the presence and integrity of required fields.
+      allow create: if isAuthenticated()
+                    && request.resource.data.createdBy == request.auth.uid
+                    && request.resource.data.createdAt == request.time
+                    && request.resource.data.name is string
+                    && request.resource.data.name.size() > 0;
+
+      // Allow updates only by the owner, and prevent changing ownership or creation date.
+      allow update: if isOwner(resource.data.createdBy)
+                    && request.resource.data.createdBy == resource.data.createdBy
+                    && request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    // --- Rules for 'capitals' SUB-COLLECTION ---
+    match /places/{placeId}/capitals/{capitalDocId} {
+      // ANY authenticated user can READ the processed capital data.
+      allow read: if isAuthenticated();
+
+      // NOBODY from the client-side can write. This forces all data processing
+      // through the backend Genkit flow, which uses the Admin SDK and bypasses these rules.
+      allow write: if false;
+    }
+  }
+}

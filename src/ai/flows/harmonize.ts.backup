@@ -1,0 +1,136 @@
+/**
+ * @fileOverview A flow for harmonizing and structuring uploaded data.
+ *
+ * - harmonizeDataOnUpload - A function that takes raw data and categorizes it.
+ * - HarmonizeDataInput - The input type for the harmonizeDataOnUpload function.
+ * - HarmonizeDataOutput - The return type for the harmonizeDataOnUpload function.
+ */
+'use server';
+
+import { ai } from '@/ai/genkit';
+import { googleAI } from '@genkit-ai/googleai';
+import { z } from 'zod';
+import * as admin from 'firebase-admin';
+
+// --- Robust Firebase Admin SDK Initialization ---
+if (!admin.apps.length) {
+  try {
+    admin.initializeApp();
+    console.log('Firebase Admin SDK initialized successfully.');
+  } catch (e) {
+    console.error('CRITICAL: Firebase Admin SDK initialization failed!', e);
+  }
+}
+
+const db = admin.firestore();
+
+// --- Input Schema ---
+export const HarmonizeDataInputSchema = z.object({
+  placeId: z.string().min(1, 'placeId cannot be empty.'),
+  capitalCategory: z.enum(['Natural', 'Human', 'Social', 'Manufactured', 'Financial']),
+  fileDataUri: z.string().regex(/^data:/, 'fileDataUri must be a valid data URI starting with "data:".'),
+  sourceFile: z.string(),
+});
+export type HarmonizeDataInput = z.infer<typeof HarmonizeDataInputSchema>;
+
+// --- AI Output Schema (Internal) ---
+const AIOutputSchema = z.object({
+  summary: z.string().default('No summary generated.'),
+  geoJSON: z.object({
+    type: z.literal('FeatureCollection'),
+    features: z.array(z.any()),
+  }).default({ type: 'FeatureCollection', features: [] }),
+  metrics: z.record(z.any()).default({}),
+});
+
+// --- Final Flow Output Schema ---
+export const HarmonizeDataOutputSchema = z.object({
+  summary: z.string(),
+  geoJSON: z.string().describe('A stringified GeoJSON object.'),
+  metrics: z.record(z.any()),
+  firestoreDocId: z.string(),
+});
+export type HarmonizeDataOutput = z.infer<typeof HarmonizeDataOutputSchema>;
+
+// --- The Main Genkit Flow ---
+const harmonizeDataFlow = ai.defineFlow(
+  {
+    name: 'harmonizeDataFlow',
+    inputSchema: HarmonizeDataInputSchema,
+    outputSchema: HarmonizeDataOutputSchema,
+  },
+  async (input) => {
+    console.log(`[harmonizeDataFlow] Starting for placeId: ${input.placeId}`);
+
+    const prompt = `You are an expert in regenerative development and GIS. Your task is to analyze the provided data and structure it according to the Five Capitals framework.
+
+      Data Details:
+      - Capital Category: ${input.capitalCategory}
+      - Source File: ${input.sourceFile}
+      - Data Content: {{media url=${input.fileDataUri}}}
+
+      Instructions:
+      1.  Analyze the data from the Data Content.
+      2.  Generate a brief, one-sentence summary of the data's content.
+      3.  Extract any and all geographic information (coordinates, places, addresses) and format it as a single, valid GeoJSON FeatureCollection object. If no geographic data is present, return an empty FeatureCollection: { "type": "FeatureCollection", "features": [] }.
+      4.  Identify up to 5 key metrics or data points from the content.
+      5.  Return a single, valid JSON object with the following structure: { "summary": "...", "geoJSON": {...}, "metrics": {...} }. Do not include any other text or formatting like markdown backticks.`;
+
+    let parsedOutput;
+    try {
+      console.log('[harmonizeDataFlow] Calling Gemini 1.5 Flash...');
+      const result = await ai.generate({
+        model: googleAI.model('gemini-1.5-flash'),
+        prompt: prompt,
+        output: { schema: AIOutputSchema },
+      });
+
+      parsedOutput = result.output;
+      if (!parsedOutput) {
+        throw new Error('AI model returned an empty or invalid output.');
+      }
+      console.log('[harmonizeDataFlow] Successfully received and parsed AI output.');
+
+    } catch (error) {
+      console.error('[harmonizeDataFlow] FAILED during AI generation/parsing:', error);
+      throw new Error('The AI model failed to process the document. Please check the server logs.');
+    }
+
+    let docRef;
+    try {
+      const geoJSONString = JSON.stringify(parsedOutput.geoJSON);
+      const dataToSave = {
+        category: input.capitalCategory,
+        sourceFile: input.sourceFile,
+        summary: parsedOutput.summary,
+        geoJSON: geoJSONString,
+        metrics: parsedOutput.metrics,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+
+      console.log(`[harmonizeDataFlow] Saving harmonized data to Firestore...`);
+      docRef = await db
+        .collection('places')
+        .doc(input.placeId)
+        .collection('capitals')
+        .add(dataToSave);
+      console.log(`[harmonizeDataFlow] Successfully saved data to Firestore. Doc ID: ${docRef.id}`);
+
+    } catch (error) {
+      console.error('[harmonizeDataFlow] FAILED to save data to Firestore:', error);
+      throw new Error('The processed data could not be saved to the database. Please check the server logs.');
+    }
+
+    return {
+      summary: parsedOutput.summary,
+      geoJSON: JSON.stringify(parsedOutput.geoJSON),
+      metrics: parsedOutput.metrics,
+      firestoreDocId: docRef.id,
+    };
+  }
+);
+
+// --- Exported Function ---
+export async function harmonizeDataOnUpload(input: HarmonizeDataInput): Promise<HarmonizeDataOutput> {
+  return harmonizeDataFlow(input);
+}
