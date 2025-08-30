@@ -1,21 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Allow requests from Cloud Workstations and localhost
-  allowedDevOrigins: [
-    'localhost',
-    '*.cloudworkstations.dev',
-    '*.cluster-*.cloudworkstations.dev',
-    '*.firebase.com',
-    '*.web.app',
-  ],
   experimental: {
-    serverComponentsExternalPackages: ['@genkit-ai/core', '@genkit-ai/googleai']
+    serverComponentsExternalPackages: ['@genkit-ai/core', '@genkit-ai/googleai'],
   },
-  webpack: (config) => {
-    config.externals.push({
-      'utf-8-validate': 'commonjs utf-8-validate',
-      'bufferutil': 'commonjs bufferutil',
-    });
+  webpack: (config, { isServer }) => {
+    // A small webpack config change to force cache invalidation.
+    if (!isServer) {
+      // For example, you can add a simple alias or rule here if needed in the future.
+    }
     return config;
   },
 };

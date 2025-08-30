@@ -6,7 +6,6 @@
 import { z } from 'zod';
 import { ai, googleAI } from '../genkit';
 import { defineFirestoreRetriever } from '@genkit-ai/firebase';
-import { type FirestoreRetrieverSource } from '@genkit-ai/google-cloud';
 import * as admin from 'firebase-admin';
 
 // This file does not re-initialize firebase-admin, it assumes it's been
@@ -52,17 +51,19 @@ export type RagQueryOutput = z.infer<typeof RagQueryOutputSchema>;
 export function createPlaceSpecificRetriever(placeId: string) {
   const knowledgeCollection = db.collection('knowledge');
   
-  // The source query is updated to filter by the provided placeId.
-  const source: FirestoreRetrieverSource = {
-    query: knowledgeCollection.where('placeId', '==', placeId),
-    contentField: 'text',
-    vectorField: 'embedding',
-  };
+  // The query is updated to filter by the provided placeId.
+  const placeSpecificQuery = knowledgeCollection.where('placeId', '==', placeId);
 
-  return defineFirestoreRetriever(ai, {
+  // CORRECTED: Updated to the modern Genkit API for defineFirestoreRetriever.
+  // The `source` object is removed, and properties like `query`, `contentField`,
+  // and `vectorField` are passed directly to the configuration.
+  return defineFirestoreRetriever({
     name: `knowledgeRetriever_${placeId}`,
     firestore: db,
-    source,
+    collection: knowledgeCollection,
+    query: placeSpecificQuery,
+    contentField: 'text',
+    vectorField: 'embedding',
     embedder: googleAI.embedder('text-embedding-004'),
   });
 }
