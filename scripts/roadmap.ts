@@ -39,29 +39,39 @@ const evidenceMap: Record<string, string[]> = {
 
 
 /**
- * Recursively scans directories to build a searchable string of all code.
- * @param dir The directory to scan.
+ * Recursively scans specified directories and files to build a searchable string of all application code.
+ * @param paths An array of directory or file paths to scan.
  * @returns A promise that resolves to the combined content of all files.
  */
-async function scanCodebase(dir: string): Promise<string> {
+async function scanCodebase(paths: string[]): Promise<string> {
   let content = '';
-  const entries = await fs.readdir(dir, { withFileTypes: true });
-  for (const entry of entries) {
-    const fullPath = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      if (entry.name !== 'node_modules' && entry.name !== '.next') {
-        content += await scanCodebase(fullPath);
-      }
-    } else if (/\.(ts|tsx|sh|md|json)$/.test(entry.name)) {
-        try {
-            content += await fs.readFile(fullPath, 'utf-8');
-        } catch (e) {
-            console.warn(`Could not read file: ${fullPath}`);
+  for (const p of paths) {
+    try {
+        const stats = await fs.stat(p);
+        if (stats.isDirectory()) {
+            const entries = await fs.readdir(p, { withFileTypes: true });
+            for (const entry of entries) {
+                const fullPath = path.join(p, entry.name);
+                // Recurse into subdirectories, avoiding specified exclusions
+                if (entry.isDirectory()) {
+                    if (entry.name !== 'node_modules' && entry.name !== '.next' && entry.name !== 'docs' && entry.name !== 'scripts') {
+                        content += await scanCodebase([fullPath]);
+                    }
+                } else if (/\.(ts|tsx|sh|md|json)$/.test(entry.name)) {
+                    content += await fs.readFile(fullPath, 'utf-8');
+                }
+            }
+        } else if (stats.isFile()) {
+            content += await fs.readFile(p, 'utf-8');
         }
+    } catch(e) {
+        // Log if a path doesn't exist, but don't stop the whole process.
+        console.warn(`[Code Scanner] Warning: Could not read path ${p}. It may not exist yet.`);
     }
   }
   return content;
 }
+
 
 /**
  * The main agent function to generate the roadmap report.
@@ -74,8 +84,13 @@ async function generateRoadmapReport() {
   const roadmapPath = path.join(process.cwd(), 'docs', 'DEVELOPMENT_ROADMAP.md');
   const roadmapContent = await fs.readFile(roadmapPath, 'utf-8');
 
-  console.log('[Agent] Scanning codebase... this may take a moment.');
-  const codebaseText = await scanCodebase(process.cwd());
+  console.log('[Agent] Scanning application source code...');
+  const appCodeDirs = [
+      path.join(process.cwd(), 'src'), 
+      path.join(process.cwd(), 'functions'),
+      path.join(process.cwd(), 'firestore.rules') // Include specific root files
+  ];
+  const codebaseText = await scanCodebase(appCodeDirs);
   console.log('[Agent] Codebase scan complete.\n');
 
   const tiers = roadmapContent.split('---');
@@ -93,12 +108,12 @@ async function generateRoadmapReport() {
       const itemText = match[1].trim();
       let isDone = false;
 
-      // Find the corresponding evidence key
+      // Find the corresponding evidence key from our map
       const evidenceKey = Object.keys(evidenceMap).find(key => itemText.includes(key));
-
+      
       if (evidenceKey) {
         const evidenceItems = evidenceMap[evidenceKey];
-        // CORRECTED LOGIC: Check if *at least one* evidence item is present.
+        // CORRECTED LOGIC: Check if *at least one* evidence item is present in the codebase.
         const someEvidenceFound = evidenceItems.some(evidence => codebaseText.includes(evidence));
         if (someEvidenceFound) {
           isDone = true;
