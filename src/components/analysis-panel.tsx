@@ -66,11 +66,19 @@ type DocumentMetadata = DocumentData & {
   placeId: string;
 };
 
+type VisibleLayers = {
+  Natural: boolean;
+  Human: boolean;
+  Social: boolean;
+  Manufactured: boolean;
+  Financial: boolean;
+};
+
 type AnalysisPanelProps = {
   onPlaceChange: (place: Place | null) => void;
   selectedPlace: DocumentData | null;
-  visibleLayers: { [key: string]: boolean };
-  onLayerVisibilityChange: (layers: { [key: string]: boolean }) => void;
+  visibleLayers: VisibleLayers;
+  onLayerVisibilityChange: (layers: VisibleLayers) => void;
 };
 
 export function AnalysisPanel({ onPlaceChange, selectedPlace, visibleLayers, onLayerVisibilityChange }: AnalysisPanelProps) {
