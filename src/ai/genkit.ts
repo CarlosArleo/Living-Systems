@@ -2,16 +2,16 @@
 
 import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
-// CORRECTED: Use the correct DEFAULT import for the Firebase plugin.
-import firebase from '@genkit-ai/firebase';
+// FINAL CORRECTION: Use a namespace import for the Firebase plugin.
+import * as firebase from '@genkit-ai/firebase';
 import 'dotenv/config'; // Load environment variables
 
 // Create the configured AI instance - this is the "central brain"
 export const ai = genkit({
   plugins: [
     googleAI(),
-    // CORRECTED: Call the default import directly as a function.
-    firebase({
+    // FINAL CORRECTION: Call the firebase() function from the imported namespace.
+    firebase.firebase({
       projectId: process.env.GCLOUD_PROJECT,
       storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
       flowStateStore: 'firebase', // Best practice for persisting flow states
