@@ -1,4 +1,3 @@
-
 /**
  * @fileOverview A diagnostic script to audit the Genkit flow system against its constitution.
  * This script checks for file existence, registration, and proper dependencies.
@@ -108,6 +107,16 @@ async function runDiagnostics() {
   await runPreFlightChecks();
 
   const constitutionFlows = await parseConstitution();
+  
+  // FIX: Handle case where no flows are found in the constitution
+  if (constitutionFlows.size === 0) {
+    console.warn('\n--- DIAGNOSTIC AUDIT REPORT ---');
+    console.warn('[!] WARNING: No flows were found in docs/FLOW_SYSTEM_CONSTITUTION.md.');
+    console.warn('The audit cannot proceed. Please ensure the constitution document is correctly populated.');
+    console.log('\n--- END OF REPORT ---');
+    return; // Exit gracefully
+  }
+
   const report: FlowManifest[] = [];
 
   for (const [name, { filePath }] of constitutionFlows.entries()) {
