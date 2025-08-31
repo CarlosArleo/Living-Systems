@@ -26,23 +26,27 @@ Our development process is a synergistic cycle between three core technologies:
 2.  **Customize in Google AI Studio:** We move to AI Studio to prototype, test, and fine-tune Gemini models for the specific tasks identified in the previous step. This creates specialized AI "experts."
 3.  **Integrate with the Gemini API:** The customized model endpoint is integrated into the application's backend code (usually within a Firebase Cloud Function or API Route), making its intelligence available to the app. This enhanced capability then allows for further prototyping, restarting the cycle.
 
-## Section 2.1: Infrastructure Prerequisites
+## Section 2.1: CRITICAL INFRASTRUCTURE PREREQUISITE
 
-**CRITICAL: Firestore Vector Index**
+### Firestore Vector Index for RAG Flow
 
-To enable the Retrieval-Augmented Generation (RAG) functionality (`ragQueryFlow`), a specific composite index MUST be created in Firestore. Without this index, queries that filter by `placeId` and perform a vector search on the `embedding` field will fail.
+To enable the Retrieval-Augmented Generation (RAG) functionality in the `ragQueryFlow`, a specific composite index **MUST** be created in your Firestore database. Without this index, the flow will fail with a `FAILED_PRECONDITION: Missing vector index configuration` error.
 
-**Error Symptom:**
-`FAILED_PRECONDITION: Missing vector index configuration.`
+This is because the flow performs a complex query that filters documents by `placeId` and simultaneously performs a vector search on the `embedding` field. Firestore requires this index to execute such queries efficiently.
 
 **Solution:**
-Run the following `gcloud` command in your terminal, ensuring you are authenticated to the correct Google Cloud project.
+You must run the following `gcloud` command in your terminal. Ensure you are authenticated to the correct Google Cloud project associated with your Firebase project.
 
 ```bash
 gcloud firestore indexes composite create --project=rdd-applicationback --collection-group=knowledge --query-scope=COLLECTION --field-config=order=ASCENDING,field-path=placeId --field-config=vector-config='{"dimension":"768","flat": "{}"}',field-path=embedding
 ```
 
-This command only needs to be run once for the project.
+**Important Notes:**
+*   This command only needs to be run **once** for the entire project.
+*   Index creation can take a few minutes. You can monitor its status in the Google Cloud Console under Firestore > Indexes.
+*   The `ragQueryFlow` will not work until this index is successfully built and enabled.
+
+---
 
 ## Section 3: Core API Routes and Their AI Instructions
 
@@ -70,7 +74,7 @@ This is the practical guide for connecting our "Recipe Book" (the Prompt Framewo
 This outlines the end-to-end flow of information through the system:
 
 1.  **Upload:** A user uploads a file (`report.pdf`) via the frontend UI.
-2.  **Harmonize:** The file is sent to the `/api/harmonize` route. It's saved to Cloud Storage, and a new document is created in Firestore under `places/{placeId}/capitals/{docId}` with `status: "uploaded"`.
+2.  **Harmonize:** The file is sent to the `/api/harmonize` route. It's saved to Cloud Storage, and a new document is created in Firestore under `places/{placeId}/documents/{docId}` with `status: "uploaded"`.
 3.  **Analyze (On-Demand):** The user clicks "Run Analysis" in the UI. A request is sent to the `/api/analyze` route with the `placeId` and `docId`.
 4.  **AI Processing:** The `/api/analyze` route fetches the file, uses the **Master Analysis Prompt** to call Gemini, and receives a rich JSON object with the full Five Capitals breakdown.
 5.  **Store Insights:** The results are saved back to the same Firestore document, updating its `status` to `"analyzed"` and populating the `analysis`, `overallSummary`, and `geoJSON` fields.
