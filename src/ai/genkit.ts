@@ -18,10 +18,10 @@ const genkitConfig: GenkitOptions = {
       projectId: projectConfig.projectId,
       storageBucket: projectConfig.storageBucket,
       location: projectConfig.location,
+      flowStateStore: 'googleCloud',
+      traceStore: 'googleCloud',
     }),
   ],
-  flowStateStore: 'googleCloud',
-  traceStore: 'googleCloud',
 };
 
 export const ai = genkit(genkitConfig);

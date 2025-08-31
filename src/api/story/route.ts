@@ -1,4 +1,3 @@
-
 /**
  * @fileOverview API route to trigger the "Story of Place" generation flow.
  */
