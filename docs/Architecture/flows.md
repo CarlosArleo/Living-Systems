@@ -1,8 +1,3 @@
-Of course. This is the perfect next step. After a complex debugging and refactoring phase, creating a clear guide is essential. It codifies our new, correct understanding of the system's architecture and serves as a foundational document for all future development.
-
-This guide will be your "map of the brain," illustrating how each AI flow functions and interacts within the larger ecosystem.
-
----
 
 ## **The RDI Platform: A Guide to the AI Core & Genkit Flows**
 
