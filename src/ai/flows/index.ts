@@ -7,10 +7,12 @@
 export * from './critiqueCode';
 export * from './embed';
 export * from './generateCode';
-export * from './harmonize';
-export * from './integralAssessment';
 export * from './knowledge';
 export * from './rag-flow';
 export * from './simple';
 export * from './story-flow';
-export * from './meta-prompter'; // Added missing export
+export * from './meta-prompter';
+export * from './processing'; // Correct: Export the new unified flow
+// The old, separate flows are no longer needed.
+// export * from './harmonize';
+// export * from './integralAssessment';

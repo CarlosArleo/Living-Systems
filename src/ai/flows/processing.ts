@@ -57,7 +57,26 @@ const AIOutputSchema = z.object({
 // --- Helper Functions ---
 async function loadPromptTemplate(): Promise<string> {
   const promptPath = path.join(process.cwd(), 'src/ai/prompts/integralAssessment.prompt');
-  return await fs.readFile(promptPath, 'utf-8');
+  // A simple fallback if the prompt file isn't created yet.
+  const defaultPrompt = `
+      You are an expert data extractor for a Regenerative Development project. Your task is to read the document provided via the URL and structure its content.
+
+      DOCUMENT DETAILS:
+      - Source File Name: "{{sourceFile}}"
+      - Document Content: {{media url='{{fileUrl}}'}}
+
+      EXTRACTION REQUIREMENTS:
+      1.  Provide a brief, 1-2 sentence overallSummary.
+      2.  Extract ALL geographic information as a valid GeoJSON FeatureCollection.
+      3.  Perform a detailed analysis for EACH of the five capitals (Natural, Human, Social, Manufactured, Financial), extracting relevant text, a summary, and key data points.
+      4.  Return a single, valid JSON object that strictly follows the required Zod schema.
+  `;
+  try {
+      return await fs.readFile(promptPath, 'utf-8');
+  } catch (e) {
+      console.warn(`Could not load prompt from ${promptPath}. Using default.`)
+      return defaultPrompt;
+  }
 }
 
 // --- The Unified Flow ---
@@ -73,7 +92,6 @@ export const processUploadedDocument = ai.defineFlow(
   },
   async (input: FlowInput) => {
     // CORRECTED: Destructure the payload from the input object.
-    // This is the fix for the data-handling error.
     const { placeId, documentId, storagePath, fileName, uploadedBy } = input;
     
     const docRef = db.collection('places').doc(placeId).collection('documents').doc(documentId);

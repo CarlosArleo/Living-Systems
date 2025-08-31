@@ -1,136 +1,76 @@
-
 /**
- * @fileoverview The "Deep Analyst" flow. This flow is triggered by the onObjectFinalized
- * Cloud Function and performs the heavy, time-consuming AI analysis on a document
- * that has already been cataloged in Firestore.
+ * @fileOverview API route to trigger the initial data harmonization (metadata creation) flow.
+ * This is called by the client immediately after uploading a file to Cloud Storage.
  */
-'use server';
-
-import { ai } from '../genkit';
-import { googleAI } from '@genkit-ai/googleai';
+import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+// CORRECTED: Import the new unified flow
+import { processUploadedDocument } from '@/ai/flows/processing'; 
+import { getAuth } from 'firebase-admin/auth';
 import * as admin from 'firebase-admin';
-import { getStorage } from 'firebase-admin/storage';
-import * as fs from 'fs/promises';
-import * as path from 'path';
 
-// --- Robust Firebase Admin SDK Initialization ---
 if (!admin.apps.length) {
-  try {
-    // Explicitly configure storageBucket for robust initialization
-    admin.initializeApp({
-      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-    });
-  } catch (e) {
-    console.error('Integral Assessment: Firebase Admin SDK initialization failed!', e);
-  }
+    try {
+      admin.initializeApp();
+    } catch (e) {
+      console.error('CRITICAL: Firebase Admin SDK initialization failed in API route!', e);
+    }
 }
 const db = admin.firestore();
-const storage = getStorage();
 
-// --- Zod Schemas ---
-const FlowInputSchema = z.object({
-  placeId: z.string().min(1, { message: "placeId cannot be empty." }),
-  documentId: z.string().min(1, { message: "documentId cannot be empty." }),
-  storagePath: z.string().min(1, { message: "storagePath cannot be empty." }),
-});
-type FlowInput = z.infer<typeof FlowInputSchema>;
-
-
-const CapitalExtractionSchema = z.object({
-  isPresent: z.boolean().describe("Set to true if data for this capital is in the document."),
-  summary: z.string().describe("A 2-3 sentence qualitative summary for this capital."),
-  keyDataPoints: z.array(z.string()).describe("Up to 3 key quantitative or qualitative data points."),
-  extractedText: z.string().describe("Verbatim text extracted for this capital."),
+// This schema validates the incoming request from the client.
+const HarmonizeApiInputSchema = z.object({
+  placeId: z.string().min(1, 'placeId is required.'),
+  initialCapitalCategory: z.string(),
+  storagePath: z.string().min(1, 'storagePath is required.'),
+  sourceFile: z.string().min(1, 'sourceFile is required.'),
 });
 
-const AIOutputSchema = z.object({
-  overallSummary: z.string().describe("A 1-2 sentence summary of the document's purpose."),
-  geoJSON: z.any().describe("A valid GeoJSON FeatureCollection object."),
-  analysis: z.object({
-    naturalCapital: CapitalExtractionSchema,
-    humanCapital: CapitalExtractionSchema,
-    socialCapital: CapitalExtractionSchema,
-    manufacturedCapital: CapitalExtractionSchema,
-    financialCapital: CapitalExtractionSchema,
-  }),
-});
-
-async function loadPromptTemplate(): Promise<string> {
-  const promptPath = path.join(process.cwd(), 'src/ai/prompts/integralAssessment.prompt');
-  return await fs.readFile(promptPath, 'utf-8');
-}
-
-
-// --- The Main Analysis Flow ---
-export const integralAssessmentFlow = ai.defineFlow(
-  {
-    name: 'integralAssessmentFlow',
-    inputSchema: FlowInputSchema,
-    outputSchema: z.object({ documentId: z.string(), status: z.string() }),
-  },
-  async (input: FlowInput) => {
-    const { placeId, documentId, storagePath } = input;
-    const docRef = db.collection('places').doc(placeId).collection('documents').doc(documentId);
-
-    try {
-      // Step 1: GET the document to ensure it exists before proceeding.
-      const docSnapshot = await docRef.get();
-      if (!docSnapshot.exists) {
-        throw new Error(`Document ${documentId} does not exist in place ${placeId}. Cannot start analysis.`);
-      }
-      
-      const docData = docSnapshot.data()!;
-
-      // Step 2: Update status to 'analyzing'
-      await docRef.update({ status: 'analyzing' });
-
-      // Step 3: Perform the analysis
-      const fileRef = storage.bucket().file(storagePath);
-      const [signedUrl] = await fileRef.getSignedUrl({
-        action: 'read',
-        expires: Date.now() + 15 * 60 * 1000,
-      });
-
-      const promptTemplate = await loadPromptTemplate();
-      // FIX: Use the correct Handlebars-style syntax for media URLs in prompts.
-      const prompt = promptTemplate
-        .replace('{{sourceFile}}', docData.sourceFile || 'Unknown')
-        .replace('{{initialCategory}}', docData.initialCapitalCategory || 'Unknown')
-        .replace('{{mediaUrl}}', signedUrl);
-
-      const result = await ai.generate({
-        model: googleAI.model('gemini-1.5-pro'),
-        prompt,
-        output: { format: 'json', schema: AIOutputSchema },
-      });
-
-      const aiOutput = result.output;
-      if (!aiOutput) {
-        throw new Error("AI model returned an empty or invalid output.");
-      }
-
-      // Step 4: Update document with results
-      await docRef.update({
-        status: 'analyzed',
-        analysisTimestamp: admin.firestore.FieldValue.serverTimestamp(),
-        analysis: aiOutput.analysis,
-        overallSummary: aiOutput.overallSummary,
-        geoJSON: JSON.stringify(aiOutput.geoJSON),
-      });
-
-      return { documentId, status: 'success' };
-
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error during processing.';
-      console.error(`[integralAssessmentFlow] Failed to process doc: ${documentId}. Error: ${errorMessage}`);
-      // Attempt to update the doc status to failed, but don't let this block the error response
-      try {
-        await docRef.update({ status: 'failed', error: errorMessage });
-      } catch (updateError) {
-        console.error(`[integralAssessmentFlow] Additionally failed to update status to 'failed' for doc ${documentId}`, updateError);
-      }
-      throw error; // Re-throw the original error to ensure the trigger knows about the failure.
+export async function POST(req: NextRequest) {
+  try {
+    const idToken = req.headers.get('authorization')?.split('Bearer ')[1];
+    if (!idToken) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const decodedToken = await getAuth().verifyIdToken(idToken);
+    const uid = decodedToken.uid;
+
+
+    const json = await req.json();
+    const validation = HarmonizeApiInputSchema.safeParse(json);
+
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: 'Invalid request body', issues: validation.error.issues },
+        { status: 400 }
+      );
+    }
+    
+    // Create a new document ID on the server to pass to the flow
+    const documentId = db.collection('places').doc().id;
+
+    // IMPORTANT: Asynchronously trigger the full processing flow.
+    // We do NOT await the result here. This makes the API return instantly,
+    // and the heavy AI work happens in the background.
+    processUploadedDocument({ 
+        ...validation.data,
+        uploadedBy: uid,
+        documentId: documentId
+     });
+
+    // Return an immediate success response to the client.
+    return NextResponse.json({ 
+        message: 'Document processing initiated.',
+        documentId: documentId 
+    });
+
+  } catch (error) {
+    console.error('[Harmonize API] An unexpected error occurred:', error);
+    const errorMessage =
+      error instanceof Error ? error.message : 'An unknown server error occurred.';
+    return NextResponse.json(
+      { error: 'Failed to process the harmonization request.', details: errorMessage },
+      { status: 500 }
+    );
   }
-);
+}
