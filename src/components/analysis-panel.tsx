@@ -46,7 +46,7 @@ type Place = {
 
 type AnalysisPanelProps = {
   onPlaceChange: (place: Place | null) => void;
-  selectedPlace: Place | null; // CORRECTED TYPE
+  selectedPlace: Place | null;
   onLayerVisibilityChange: (layers: any) => void;
   visibleLayers: any;
 };

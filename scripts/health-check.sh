@@ -1,157 +1,175 @@
 #!/bin/bash
 
-# Genkit Project Health Check Script
-# Run this script to validate your Genkit project setup
+# RDI Platform Health Check & Constitutional Audit
+# Version 2.0
+# Run this script to validate the project against its architectural constitution.
 
-echo "🔍 Genkit Project Health Check"
-echo "=============================="
+echo "🔍 RDI Platform Health Check & Constitutional Audit"
+echo "====================================================="
 
-# Color codes for output
+# --- Color Codes ---
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# --- Counters ---
 ERRORS=0
+WARNINGS=0
 
-# 1. CHECK PACKAGE VERSION CONSISTENCY
-echo -e "\n📦 Checking package version consistency..."
+# --- Helper Function ---
+check_file_exists() {
+    if [ ! -f "$1" ]; then
+        echo -e "${RED}❌ CRITICAL: Foundational file is missing: $1${NC}"
+        ERRORS=$((ERRORS + 1))
+        return 1
+    fi
+    return 0
+}
 
-GENKIT_VERSION=$(node -p "require('./package.json').dependencies.genkit" 2>/dev/null || echo "not found")
-CORE_VERSION=$(node -p "require('./package.json').dependencies['@genkit-ai/core']" 2>/dev/null || echo "not found")
-FIREBASE_VERSION=$(node -p "require('./package.json').dependencies['@genkit-ai/firebase']" 2>/dev/null || echo "not found")
-GOOGLEAI_VERSION=$(node -p "require('./package.json').dependencies['@genkit-ai/googleai']" 2>/dev/null || echo "not found")
+# =====================================================
+# 1. CONSTITUTIONAL CHECKS (The Most Important Part)
+# =====================================================
+echo -e "\n🏛️  Auditing against Project Constitution (CONTEXT.md)..."
 
-echo "  genkit: $GENKIT_VERSION"
-echo "  @genkit-ai/core: $CORE_VERSION"
-echo "  @genkit-ai/firebase: $FIREBASE_VERSION"
-echo "  @genkit-ai/googleai: $GOOGLEAI_VERSION"
-
-# Check for "latest" versions
-if [[ "$FIREBASE_VERSION" == *"latest"* ]] || [[ "$GOOGLEAI_VERSION" == *"latest"* ]]; then
-    echo -e "${RED}❌ ISSUE: Using 'latest' versions can cause compatibility issues${NC}"
-    echo "   Fix: Pin all Genkit packages to the same version (e.g., ^1.18.0)"
-    ERRORS=$((ERRORS + 1))
-else
-    echo -e "${GREEN}✅ All versions are pinned${NC}"
-fi
-
-# 2. CHECK TYPESCRIPT COMPILATION
-echo -e "\n🔧 Checking TypeScript compilation..."
-if npx tsc --noEmit; then
-    echo -e "${GREEN}✅ TypeScript compilation successful${NC}"
-else
-    echo -e "${RED}❌ ISSUE: TypeScript compilation errors found${NC}"
-    echo "   Run: npx tsc --noEmit"
-    ERRORS=$((ERRORS + 1))
-fi
-
-# 3. CHECK ENVIRONMENT VARIABLES
-echo -e "\n🌍 Checking environment variables..."
-
-# Check for required env vars
-REQUIRED_VARS=("GCLOUD_PROJECT" "GEMINI_API_KEY" "FIREBASE_STORAGE_BUCKET")
-ENV_ISSUES=0
-
-for var in "${REQUIRED_VARS[@]}"; do
-    if grep -q "^${var}=" .env 2>/dev/null; then
-        VALUE=$(grep "^${var}=" .env | cut -d'=' -f2-)
-        if [[ "$VALUE" == *"your-project-id"* ]] || [[ "$VALUE" == *"placeholder"* ]]; then
-            echo -e "${RED}❌ ISSUE: $var has placeholder value: $VALUE${NC}"
-            ENV_ISSUES=$((ENV_ISSUES + 1))
-        else
-            echo -e "${GREEN}✅ $var is set${NC}"
-        fi
+if check_file_exists "CONTEXT.md"; then
+    # Check 1.1: Enforce Wholeness Directive
+    if ! grep -q "cannot be enforced by security rules alone" "CONTEXT.md"; then
+        echo -e "${RED}❌ CONSTITUTIONAL FLAW: The 'Enforce Wholeness' directive in CONTEXT.md is incomplete.${NC}"
+        echo "   Fix: It must state that this check is handled by the backend, not security rules."
+        ERRORS=$((ERRORS + 1))
     else
-        echo -e "${RED}❌ ISSUE: $var not found in .env${NC}"
-        ENV_ISSUES=$((ENV_ISSUES + 1))
+        echo -e "${GREEN}✅ 'Enforce Wholeness' directive is correctly defined.${NC}"
     fi
-done
 
-if [ $ENV_ISSUES -gt 0 ]; then
-    ERRORS=$((ERRORS + ENV_ISSUES))
-fi
-
-# Check for corrupted .env lines
-if grep -q "FIREBASE_STORAGE_BUCKET.*FIREBASE_STORAGE_BUCKET" .env 2>/dev/null; then
-    echo -e "${RED}❌ ISSUE: Corrupted FIREBASE_STORAGE_BUCKET line in .env${NC}"
-    ERRORS=$((ERRORS + 1))
-fi
-
-# 4. CHECK FIREBASE ADMIN SDK INITIALIZATION
-echo -e "\n🔥 Checking Firebase Admin SDK initialization..."
-
-if grep -r "admin.initializeApp()" src/ --include="*.ts" >/dev/null 2>&1; then
-    echo -e "${YELLOW}⚠️  WARNING: Found admin.initializeApp() without explicit config${NC}"
-    echo "   Consider adding explicit projectId and storageBucket"
-fi
-
-if grep -r "storage().bucket()" src/ --include="*.ts" >/dev/null 2>&1; then
-    echo -e "${RED}❌ ISSUE: Found storage().bucket() calls without explicit bucket name${NC}"
-    echo "   Fix: Use storage().bucket('your-bucket-name')"
-    ERRORS=$((ERRORS + 1))
-fi
-
-# 5. CHECK GENKIT PLUGIN IMPORTS
-echo -e "\n🔌 Checking Genkit plugin imports..."
-
-# Check for incorrect Firebase import
-if grep -q "import firebase from '@genkit-ai/firebase'" src/ --include="*.ts" 2>/dev/null; then
-    echo -e "${RED}❌ ISSUE: Incorrect Firebase plugin import (default import)${NC}"
-    echo "   Fix: Use import { enableFirebaseTelemetry } from '@genkit-ai/firebase'"
-    ERRORS=$((ERRORS + 1))
-fi
-
-# Check for non-existent googleCloud import
-if grep -q "googleCloud(" src/ --include="*.ts" 2>/dev/null; then
-    echo -e "${RED}❌ ISSUE: Found googleCloud() function call${NC}"
-    echo "   Fix: This function doesn't exist in current Genkit versions"
-    ERRORS=$((ERRORS + 1))
-fi
-
-# 6. CHECK EMBEDDING API USAGE
-echo -e "\n🎯 Checking embedding API usage..."
-
-if grep -rn "content: texts," src/ --include="*.ts" 2>/dev/null; then
-    echo -e "${RED}❌ ISSUE: Found 'content: texts' - arrays not supported${NC}"
-    echo "   Fix: Process texts individually with map/Promise.all"
-    ERRORS=$((ERRORS + 1))
-fi
-
-# 7. CHECK CREDENTIALS
-echo -e "\n🔐 Checking credentials..."
-
-if [ -f "./credentials/rdd-application.json" ]; then
-    echo -e "${GREEN}✅ Service account credentials file exists${NC}"
+    # Check 1.2: Security Rule Example
+    if ! grep -q "Example: Complete Ruleset for Users and Places" "CONTEXT.md"; then
+        echo -e "${RED}❌ CONSTITUTIONAL FLAW: The security rule example is missing from CONTEXT.md.${NC}"
+        echo "   Fix: Add the perfected ruleset example to Section 4.1 to guide the agent."
+        ERRORS=$((ERRORS + 1))
+    else
+        echo -e "${GREEN}✅ Security rule example is present.${NC}"
+    fi
 else
-    echo -e "${YELLOW}⚠️  WARNING: Service account credentials file not found${NC}"
-    echo "   Expected: ./credentials/rdd-application.json"
+    # This is a fatal error, no point in continuing other checks.
+    echo -e "${RED}FATAL: CONTEXT.md is missing. Cannot perform audit.${NC}"
+    exit 1
 fi
 
-# 8. CHECK FOR UNDEFINED VARIABLES
-echo -e "\n🔍 Checking for common undefined variable patterns..."
+# =====================================================
+# 2. ENVIRONMENT & CONFIGURATION CHECKS
+# =====================================================
+echo -e "\n🌍 Checking Environment & Configuration..."
 
-UNDEFINED_PATTERNS=("fileRef" "bucket(" "response.embedding" "texts,")
-for pattern in "${UNDEFINED_PATTERNS[@]}"; do
-    if grep -rn "$pattern" src/ --include="*.ts" 2>/dev/null | grep -v "//"; then
-        echo -e "${YELLOW}⚠️  Found potentially problematic pattern: $pattern${NC}"
+# Check 2.1: .env file and required variables
+if check_file_exists ".env"; then
+    REQUIRED_VARS=("GCLOUD_PROJECT" "FIREBASE_STORAGE_BUCKET")
+    for var in "${REQUIRED_VARS[@]}"; do
+        if ! grep -q "^${var}=" .env || [[ "$(grep "^${var}=" .env | cut -d'=' -f2-)" == "" ]]; then
+            echo -e "${RED}❌ CONFIG ERROR: Required variable '$var' is missing or empty in .env${NC}"
+            ERRORS=$((ERRORS + 1))
+        else
+            echo -e "${GREEN}✅ Environment variable '$var' is set.${NC}"
+        fi
+    done
+else
+    echo "   Skipping .env checks."
+fi
+
+# Check 2.2: Central Configuration Manifest
+if check_file_exists "src/ai/config.ts"; then
+    if ! grep -q "throw new Error" "src/ai/config.ts"; then
+        echo -e "${YELLOW}⚠️  WARNING: src/ai/config.ts is missing validation checks.${NC}"
+        echo "   It should throw an error if required environment variables are not set."
+        WARNINGS=$((WARNINGS + 1))
+    else
+        echo -e "${GREEN}✅ Configuration manifest (config.ts) includes validation.${NC}"
     fi
-done
+fi
 
-# SUMMARY
+# =====================================================
+# 3. GENKIT & TYPESCRIPT HEALTH CHECKS
+# =====================================================
+echo -e "\n🔧 Checking Genkit & TypeScript Health..."
+
+# Check 3.1: Dependency Alignment
+echo "   Checking package versions..."
+# This is a simple check. A more advanced check could compare versions.
+if ! node -p "require('./package.json').dependencies['@genkit-ai/google-cloud']" > /dev/null 2>&1; then
+    echo -e "${RED}❌ DEPENDENCY ERROR: @genkit-ai/google-cloud is not installed.${NC}"
+    echo "   Fix: Run 'npm install @genkit-ai/google-cloud'"
+    ERRORS=$((ERRORS + 1))
+else
+    echo -e "${GREEN}✅ Required Genkit plugins appear to be installed.${NC}"
+fi
+
+# Check 3.2: TypeScript Compilation
+echo "   Running TypeScript compiler check..."
+if npx tsc --noEmit > /dev/null 2>&1; then
+    echo -e "${GREEN}✅ TypeScript compilation successful (Found 0 errors).${NC}"
+else
+    echo -e "${RED}❌ CRITICAL: TypeScript compilation failed.${NC}"
+    echo "   Fix: Run 'npx tsc --noEmit' to see the specific errors."
+    ERRORS=$((ERRORS + 1))
+fi
+
+# =====================================================
+# 4. ARCHITECTURAL CHECKS (Code against Constitution)
+# =====================================================
+echo -e "\n🏗️  Performing Architectural Audit..."
+
+# Check 4.1: Firestore Rules Security
+if check_file_exists "firestore.rules"; then
+    if grep -q "allow read: if true;" "firestore.rules"; then
+        echo -e "${RED}❌ ARCHITECTURAL FLAW: firestore.rules allows public read access ('if true;').${NC}"
+        echo "   Violation: CONTEXT.md Section 4, 'Secure by Default'."
+        ERRORS=$((ERRORS + 1))
+    elif ! grep -q "allow write: if false;" "firestore.rules"; then
+        echo -e "${YELLOW}⚠️  WARNING: firestore.rules may be missing 'allow write: if false;' for critical collections.${NC}"
+        echo "   Verify that client-side writes are disabled for 'places' and 'documents'."
+        WARNINGS=$((WARNINGS + 1))
+    else
+        echo -e "${GREEN}✅ firestore.rules appears to be secure by default.${NC}"
+    fi
+fi
+
+# Check 4.2: Flow Registration
+if check_file_exists "src/ai/flows/index.ts"; then
+    # Count the number of flow files vs. the number of exports in the index
+    FLOW_FILES_COUNT=$(ls -1 src/ai/flows/*.ts | grep -v "index.ts" | wc -l)
+    EXPORT_COUNT=$(grep -c "export \*" src/ai/flows/index.ts)
+    if [ "$FLOW_FILES_COUNT" -ne "$EXPORT_COUNT" ]; then
+        echo -e "${RED}❌ ARCHITECTURAL FLAW: Flow registration mismatch.${NC}"
+        echo "   Found $FLOW_FILES_COUNT flow files but only $EXPORT_COUNT are exported in src/ai/flows/index.ts."
+        ERRORS=$((ERRORS + 1))
+    else
+        echo -e "${GREEN}✅ All flows appear to be correctly registered in the index.${NC}"
+    fi
+fi
+
+# =====================================================
+# 5. SUMMARY
+# =====================================================
 echo -e "\n📊 SUMMARY"
 echo "==========="
 
 if [ $ERRORS -eq 0 ]; then
-    echo -e "${GREEN}✅ All checks passed! Your Genkit project looks healthy.${NC}"
+    if [ $WARNINGS -eq 0 ]; then
+        echo -e "${GREEN}✅ All checks passed! The RDI Platform is in a healthy, constitutional state.${NC}"
+    else
+        echo -e "${YELLOW}⚠️  Project is functional but has $WARNINGS warning(s). Please review.${NC}"
+    fi
     exit 0
 else
-    echo -e "${RED}❌ Found $ERRORS issue(s) that need attention.${NC}"
-    echo -e "\n🛠️  QUICK FIXES:"
-    echo "   1. Run: npm install (to sync package versions)"
-    echo "   2. Run: npx tsc --noEmit (to see TypeScript errors)"
-    echo "   3. Check your genkit.ts file for non-existent function calls"
-    echo "   4. Ensure all storage().bucket() calls have explicit bucket names"
-    echo "   5. Verify .env file has no placeholder values"
+    echo -e "${RED}❌ Found $ERRORS critical issue(s) that violate the constitution.${NC}"
+    if [ $WARNINGS -gt 0 ]; then
+        echo -e "${YELLOW}⚠️  Also found $WARNINGS warning(s).${NC}"
+    fi
+    echo -e "\n🛠️  RECOMMENDED ACTIONS:"
+    echo "   1. Review any 'CONSTITUTIONAL FLAW' messages and update CONTEXT.md."
+    echo "   2. Review any 'CONFIG ERROR' messages and update your .env file."
+    echo "   3. Run 'npx tsc --noEmit' to debug any compilation errors."
+    echo "   4. Review any 'ARCHITECTURAL FLAW' messages and refactor the relevant code."
     exit 1
 fi
