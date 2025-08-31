@@ -27,7 +27,7 @@ export const critiqueCode = ai.defineFlow(
     outputSchema: z.string().describe('A structured Markdown report of the audit findings.'),
   },
   async ({ codeToCritique, projectConstitution }: CritiqueInput) => {
-    // FIX: Add a guard clause to handle empty or whitespace-only code input.
+    // Add a guard clause to handle empty or whitespace-only code input.
     if (!codeToCritique || codeToCritique.trim() === '') {
       return `
 ### Code Audit Report

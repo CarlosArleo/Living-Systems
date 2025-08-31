@@ -75,7 +75,7 @@ export async function retrieveRelevantContext(
 
   const embeddingResponse = await ai.embed({
       embedder: googleAI.embedder('text-embedding-004'),
-      content: taskDescription,
+      content: {text: taskDescription},
   });
   
   const queryEmbedding = embeddingResponse[0].embedding;

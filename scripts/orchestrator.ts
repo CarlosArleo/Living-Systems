@@ -32,7 +32,7 @@ async function runDevelopmentCycle(taskDescription: string, outputFilePath: stri
     
     console.log('[Orchestrator] Calling Generator Agent...');
     
-    // CORRECTED: Pass the context as an array and use the correct parameter name 'critique'.
+    // Pass the context as an array and use the correct parameter name 'critique'.
     currentCode = await generateCode({
         taskDescription,
         context: relevantContextChunks,
@@ -48,7 +48,6 @@ async function runDevelopmentCycle(taskDescription: string, outputFilePath: stri
     // Step 2: Critique the generated code
     const projectConstitution = await fs.readFile(path.join(process.cwd(), 'CONTEXT.md'), 'utf-8');
     
-    // CORRECTED: Call critiqueCode with the correct parameter names.
     const rawCritiqueReport = await critiqueCode({
       codeToCritique: currentCode,
       projectConstitution: projectConstitution,
