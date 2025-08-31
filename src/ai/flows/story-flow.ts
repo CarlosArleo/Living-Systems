@@ -4,7 +4,8 @@
  *               all available document summaries for a given place.
  */
 
-import { ai, googleAI } from '../genkit';
+import { ai } from '../genkit';
+import { googleAI } from '@genkit-ai/googleai';
 import {
   StoryInputSchema,
   StoryOutputSchema,
@@ -33,7 +34,7 @@ const generateStoryOfPlaceFlow = ai.defineFlow(
     inputSchema: StoryInputSchema,
     outputSchema: StoryOutputSchema,
   },
-  async (input) => {
+  async (input: StoryInput) => {
     console.log(`[generateStoryOfPlaceFlow] Starting for placeId: ${input.placeId}`);
 
     const capitalsSnapshot = await db

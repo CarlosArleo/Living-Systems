@@ -5,7 +5,8 @@
  */
 'use server';
 
-import { ai, googleAI } from '../genkit';
+import { ai } from '../genkit';
+import { googleAI } from '@genkit-ai/googleai';
 import { z } from 'zod';
 
 // Schema for a standard code generation request
@@ -24,6 +25,8 @@ const CorrectCodeInputSchema = z.object({
 
 // The flow can accept either a generation or a correction request
 const FlowInputSchema = z.union([GenerateCodeInputSchema, CorrectCodeInputSchema]);
+type FlowInput = z.infer<typeof FlowInputSchema>;
+
 
 /**
  * A Genkit flow that generates or corrects code based on a task description.
@@ -35,7 +38,7 @@ export const generateCode = ai.defineFlow(
     inputSchema: FlowInputSchema,
     outputSchema: z.string().describe('The generated code as a string.'),
   },
-  async (input) => {
+  async (input: FlowInput) => {
     let prompt: string;
 
     // Check if this is a correction task by looking for the 'failedCode' property

@@ -4,7 +4,8 @@
  */
 'use server';
 
-import { ai, googleAI } from '../genkit';
+import { ai } from '../genkit';
+import { googleAI } from '@genkit-ai/googleai';
 import { z } from 'zod';
 import { retrieveRelevantContext } from '../knowledge-base';
 
@@ -23,7 +24,7 @@ export const generateMasterPrompt = ai.defineFlow(
     inputSchema: MetaPrompterInputSchema,
     outputSchema: MetaPrompterOutputSchema,
   },
-  async (taskDescription) => {
+  async (taskDescription: string) => {
     console.log(`[MetaPrompter] Generating Master Prompt for task: "${taskDescription}"`);
 
     // 1. Retrieve context relevant to the task.

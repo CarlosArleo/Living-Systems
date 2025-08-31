@@ -6,7 +6,8 @@
  */
 'use server';
 
-import { ai, googleAI } from '../genkit';
+import { ai } from '../genkit';
+import { googleAI } from '@genkit-ai/googleai';
 import { z } from 'zod';
 import * as admin from 'firebase-admin';
 import { getStorage } from 'firebase-admin/storage';
@@ -33,6 +34,8 @@ const FlowInputSchema = z.object({
   documentId: z.string().min(1, { message: "documentId cannot be empty." }),
   storagePath: z.string().min(1, { message: "storagePath cannot be empty." }),
 });
+type FlowInput = z.infer<typeof FlowInputSchema>;
+
 
 const CapitalExtractionSchema = z.object({
   isPresent: z.boolean().describe("Set to true if data for this capital is in the document."),
@@ -66,7 +69,7 @@ export const integralAssessmentFlow = ai.defineFlow(
     inputSchema: FlowInputSchema,
     outputSchema: z.object({ documentId: z.string(), status: z.string() }),
   },
-  async (input) => {
+  async (input: FlowInput) => {
     const { placeId, documentId, storagePath } = input;
     const docRef = db.collection('places').doc(placeId).collection('documents').doc(documentId);
 

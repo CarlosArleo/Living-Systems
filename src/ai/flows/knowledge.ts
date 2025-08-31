@@ -1,10 +1,11 @@
 /**
  * @fileOverview A flow for indexing and storing knowledge in Firestore.
  */
-import { ai, googleAI } from '../genkit';
+import { ai } from '../genkit';
+import { googleAI } from '@genkit-ai/googleai';
 import { z } from 'zod';
 import * as admin from 'firebase-admin';
-import { IndexerInputSchema, KnowledgeSchema } from './knowledge-schemas';
+import { IndexerInputSchema, KnowledgeSchema, type IndexerInput } from './knowledge-schemas';
 
 
 // Ensure Firebase is initialized only once.
@@ -33,7 +34,7 @@ export const indexerFlow = ai.defineFlow(
       documentsDeleted: z.number(),
     }),
   },
-  async ({ placeId, texts }) => {
+  async ({ placeId, texts }: IndexerInput) => {
     
     // 1. Delete all existing knowledge documents for this placeId.
     // This makes the indexing operation idempotent.
@@ -57,10 +58,9 @@ export const indexerFlow = ai.defineFlow(
 
     // 2. Generate embeddings for the new text chunks.
     console.log(`[indexerFlow] Generating embeddings for ${texts.length} new text chunks.`);
-    const batchContentArray = texts.map(t => ({ text: t }));
     const embeddingResponses = await ai.embed({
       embedder: googleAI.embedder('text-embedding-004'),
-      content: { content: batchContentArray },
+      content: texts,
     });
 
     // 3. Write the new documents to Firestore.

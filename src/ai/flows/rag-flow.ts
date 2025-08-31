@@ -5,7 +5,8 @@
  */
 'use server';
 
-import { ai, googleAI } from '../genkit';
+import { ai } from '../genkit';
+import { googleAI } from '@genkit-ai/googleai';
 import {
   knowledgeRetriever, // Import the single, generic retriever
   RagQueryInputSchema,
@@ -23,7 +24,7 @@ const ragQueryFlow = ai.defineFlow(
     inputSchema: RagQueryInputSchema,
     outputSchema: RagQueryOutputSchema,
   },
-  async ({ placeId, query }) => {
+  async ({ placeId, query }: RagQueryInput) => {
     console.log(`[ragQueryFlow] Received query: "${query}" for placeId: "${placeId}"`);
 
     // Retrieve relevant documents, filtering by placeId in the 'where' option.

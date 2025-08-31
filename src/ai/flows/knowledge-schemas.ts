@@ -3,7 +3,8 @@
  */
 
 import { z } from 'zod';
-import { ai, googleAI } from '../genkit';
+import { ai } from '@/ai/genkit';
+import { googleAI } from '@genkit-ai/googleai';
 import { defineFirestoreRetriever } from '@genkit-ai/firebase';
 import * as admin from 'firebase-admin';
 
@@ -30,6 +31,8 @@ export const IndexerInputSchema = z.object({
   placeId: z.string(),
   texts: z.array(z.string()),
 });
+export type IndexerInput = z.infer<typeof IndexerInputSchema>;
+
 
 // --- Schemas for RAG Flow ---
 export const RagQueryInputSchema = z.object({
@@ -52,7 +55,7 @@ export type RagQueryOutput = z.infer<typeof RagQueryOutputSchema>;
  * This is the modern, correct API usage for Genkit v1.18.0.
  * Filtering by placeId is handled dynamically in the RAG flow itself.
  */
-export const knowledgeRetriever = defineFirestoreRetriever(ai, {
+export const knowledgeRetriever = defineFirestoreRetriever({
   name: `knowledgeRetriever`,
   label: 'RDI Knowledge Base',
   firestore: db,

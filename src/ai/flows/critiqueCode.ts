@@ -5,13 +5,16 @@
  */
 'use server';
 
-import { ai, googleAI } from '@/ai/genkit';
+import { ai } from '@/ai/genkit';
+import { googleAI } from '@genkit-ai/googleai';
 import { z } from 'zod';
 
 const CritiqueInputSchema = z.object({
   codeToCritique: z.string().describe('The generated code that needs to be audited.'),
   projectConstitution: z.string().describe('The full content of the CONTEXT.md file.'),
 });
+
+type CritiqueInput = z.infer<typeof CritiqueInputSchema>;
 
 /**
  * A Genkit flow that acts as a meticulous code auditor.
@@ -23,7 +26,7 @@ export const critiqueCode = ai.defineFlow(
     inputSchema: CritiqueInputSchema,
     outputSchema: z.string().describe('A structured Markdown report of the audit findings.'),
   },
-  async ({ codeToCritique, projectConstitution }) => {
+  async ({ codeToCritique, projectConstitution }: CritiqueInput) => {
     // This is the Critique-Bot Playbook prompt
     const prompt = `
       You are an expert, hyper-critical code auditor and security analyst. Your sole purpose is to review the provided code and identify any and all flaws, weaknesses, and deviations from best practices. You are meticulous and unforgiving. Your analysis must be grounded in the standards and principles defined in the project's CONSTITUTION, which is the ultimate source of truth.

@@ -3,7 +3,8 @@
  */
 'use server';
 
-import { ai, googleAI } from '@/ai/genkit';
+import { ai } from '@/ai/genkit';
+import { googleAI } from '@genkit-ai/googleai';
 import { z } from 'zod';
 
 export const embedText = ai.defineFlow(
@@ -12,7 +13,7 @@ export const embedText = ai.defineFlow(
     inputSchema: z.string(),
     outputSchema: z.array(z.number()),
   },
-  async (text) => {
+  async (text: string) => {
     // The ai.embed() function always returns an array of results,
     // even for a single input, to support batching.
     const embeddingResponse = await ai.embed({

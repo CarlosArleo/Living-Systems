@@ -4,7 +4,8 @@
  */
 
 import 'dotenv/config';
-import { ai, googleAI } from '../src/ai/genkit';
+import { ai } from '../src/ai/genkit';
+import { googleAI } from '@genkit-ai/googleai';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -38,8 +39,7 @@ async function processContextFile() {
 
       knowledgeBase.push({
         text: chunk,
-        // CORRECTED: When embedding a single chunk, the embedding is directly on the response.
-        embedding: embeddingResponse [0].embedding,
+        embedding: embeddingResponse[0].embedding,
       });
     }
 

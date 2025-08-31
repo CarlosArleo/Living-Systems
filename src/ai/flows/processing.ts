@@ -6,7 +6,8 @@
  */
 'use server';
 
-import { ai, googleAI } from '../genkit';
+import { ai } from '../genkit';
+import { googleAI } from '@genkit-ai/googleai';
 import { z } from 'zod';
 import * as admin from 'firebase-admin';
 import { getStorage } from 'firebase-admin/storage';
@@ -32,6 +33,7 @@ const FlowInputSchema = z.object({
   fileName: z.string(), // fileName can be empty if it's at the root of a folder.
   uploadedBy: z.string().min(1, { message: "uploadedBy UID cannot be empty." }),
 });
+type FlowInput = z.infer<typeof FlowInputSchema>;
 
 const CapitalExtractionSchema = z.object({
   isPresent: z.boolean().describe("Set to true if data for this capital is in the document."),
@@ -69,7 +71,7 @@ export const processUploadedDocument = ai.defineFlow(
       message: z.string(),
     }),
   },
-  async (input) => {
+  async (input: FlowInput) => {
     // CORRECTED: Destructure the payload from the input object.
     // This is the fix for the data-handling error.
     const { placeId, documentId, storagePath, fileName, uploadedBy } = input;

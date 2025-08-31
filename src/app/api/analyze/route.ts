@@ -6,7 +6,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import * as admin from 'firebase-admin';
 import { getStorage } from 'firebase-admin/storage';
-import { ai, googleAI } from '@/ai/genkit';
+import { ai } from '@/ai/genkit';
+import { googleAI } from '@genkit-ai/googleai';
 import { getAuth } from 'firebase-admin/auth';
 
 // --- Initialization ---
