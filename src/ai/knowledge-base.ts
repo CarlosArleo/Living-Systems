@@ -73,12 +73,15 @@ export async function retrieveRelevantContext(
     return [];
   }
 
+  // DEFINITIVE FIX: The `content` property for a single embedding request
+  // should be the string directly, not an object.
   const embeddingResponse = await ai.embed({
       embedder: googleAI.embedder('text-embedding-004'),
-      content: {text: taskDescription},
+      content: taskDescription,
   });
   
-  const queryEmbedding = embeddingResponse[0].embedding;
+  // The embedding response is an array of results, even for one input.
+  const queryEmbedding = embeddingResponse[0]?.embedding;
 
   if (!queryEmbedding) {
       throw new Error("Failed to generate an embedding for the query.");
@@ -93,4 +96,3 @@ export async function retrieveRelevantContext(
 
   return similarities.slice(0, topK).map((item) => item.text);
 }
-
