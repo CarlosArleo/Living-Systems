@@ -13,7 +13,8 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "postinstall": "npx update-browserslist-db@latest"
+    "postinstall": "npx update-browserslist-db@latest",
+    "validate-packages": "npm list genkit @genkit-ai/core @genkit-ai/firebase @genkit-ai/googleai typescript"
   },
   "dependencies": {
     "@babel/runtime": "^7.28.3",
