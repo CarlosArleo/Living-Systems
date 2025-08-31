@@ -6,19 +6,25 @@
 
 'use server';
 
-import { ai } from '../genkit';
-import { googleAI } from '@genkit-ai/googleai';
+import { ai, googleAI } from '../genkit';
 import { z } from 'zod';
-import { firebase } from '@genkit-ai/firebase';
-import { dotprompt, defineDotprompt } from '@genkit-ai/dotprompt';
+import * as admin from 'firebase-admin';
+import { getStorage } from 'firebase-admin/storage';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
+// This flow runs in the backend context where the Admin SDK is appropriate.
+// Initialization should be handled by the entry point (dev.ts or Cloud Functions index).
+if (!admin.apps.length) {
+  try {
+    admin.initializeApp();
+  } catch (e) {
+    console.error('integralAssessmentFlow: Firebase Admin SDK initialization failed!', e);
+  }
+}
+const db = admin.firestore();
+const storage = getStorage();
 
-// Register the prompt so Genkit knows about it.
-defineDotprompt({
-    name: 'integralAssessmentPrompt',
-    source: '../prompts/integralAssessment.prompt',
-    model: googleAI.model('gemini-1.5-pro'),
-});
 
 // --- Zod Schemas ---
 const FlowInputSchema = z.object({
@@ -52,6 +58,13 @@ const FlowOutputSchema = z.object({
   message: z.string(),
 });
 
+// Helper to load the prompt template from the file system.
+async function loadPromptTemplate(): Promise<string> {
+  const promptPath = path.join(process.cwd(), 'src/ai/prompts/integralAssessment.prompt');
+  return await fs.readFile(promptPath, 'utf-8');
+}
+
+
 export const integralAssessmentFlow = ai.defineFlow(
   {
     name: 'integralAssessmentFlow',
@@ -60,47 +73,50 @@ export const integralAssessmentFlow = ai.defineFlow(
   },
   async ({ placeId, documentId, storagePath }) => {
     return ai.run('integral-assessment-steps', async () => {
-      const docRefPath = `places/${placeId}/documents/${documentId}`;
+      const docRef = db.collection('places').doc(placeId).collection('documents').doc(documentId);
       
       try {
-        await firebase.updateDoc(docRefPath, { status: 'analyzing' });
+        await docRef.update({ status: 'analyzing' });
 
-        const docData = await firebase.getDoc(docRefPath);
-        if (!docData) {
+        const docSnapshot = await docRef.get();
+        if (!docSnapshot.exists) {
           throw new Error(`Document ${documentId} not found in place ${placeId}.`);
         }
+        const docData = docSnapshot.data()!;
 
-        const signedUrl = await firebase.generateSignedUrl({
-          path: storagePath,
-          method: 'GET',
+
+        const fileRef = storage.bucket().file(storagePath);
+        const [signedUrl] = await fileRef.getSignedUrl({
+          action: 'read',
           expires: Date.now() + 15 * 60 * 1000,
         });
+
         if (!signedUrl) {
           throw new Error(`Could not generate signed URL for ${storagePath}`);
         }
 
-        const prompt = await dotprompt.render('integralAssessmentPrompt', {
-            input: {
-                initialCapitalCategory: docData.initialCapitalCategory || 'Unspecified',
-                sourceFile: docData.sourceFile,
-                fileUrl: signedUrl,
-            },
-            output: {
-                schema: AIOutputSchema,
-                format: 'json',
-            }
-        });
+        const promptTemplate = await loadPromptTemplate();
 
-        const result = await ai.generate(prompt);
+        // Dynamically replace placeholders in the template.
+        const prompt = promptTemplate
+          .replace('{{initialCapitalCategory}}', docData.initialCapitalCategory || 'Unspecified')
+          .replace('{{sourceFile}}', docData.sourceFile || 'Unknown')
+          .replace('{{fileUrl}}', signedUrl);
+        
+        const result = await ai.generate({
+            model: googleAI.model('gemini-1.5-pro'),
+            prompt,
+            output: { format: 'json', schema: AIOutputSchema }
+        });
         
         const aiOutput = result.output;
         if (!aiOutput) {
           throw new Error("AI model returned an empty or invalid output.");
         }
 
-        await firebase.updateDoc(docRefPath, {
+        await docRef.update({
           status: 'analyzed',
-          analysisTimestamp: new Date().toISOString(),
+          analysisTimestamp: admin.firestore.FieldValue.serverTimestamp(),
           analysis: aiOutput.analysis,
           overallSummary: aiOutput.overallSummary,
           geoJSON: JSON.stringify(aiOutput.geoJSON),
@@ -110,7 +126,7 @@ export const integralAssessmentFlow = ai.defineFlow(
 
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error during analysis.';
-        await firebase.updateDoc(docRefPath, { status: 'failed', error: errorMessage });
+        await docRef.update({ status: 'failed', error: errorMessage });
         throw error;
       }
     });
