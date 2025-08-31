@@ -5,7 +5,7 @@
 
 import { genkit, type GenkitOptions } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
-// CORRECTED: Import the firebase plugin, which handles Google Cloud integration in this context.
+// CORRECTED: The firebase plugin is imported as a named export.
 import { firebase } from '@genkit-ai/firebase';
 import { projectConfig } from './config';
 
@@ -16,7 +16,7 @@ const genkitConfig: GenkitOptions = {
   plugins: [
     // The googleAI plugin for interacting with Gemini models.
     googleAI(),
-    // The firebase plugin handles GCP project context, state stores, and tracing.
+    // CORRECTED: The firebase plugin is configured with the stores.
     firebase({
       flowStateStore: {
         collection: 'genkit-flow-state',
@@ -27,8 +27,6 @@ const genkitConfig: GenkitOptions = {
     }),
   ],
   // Top-level options
-  flowStateStore: 'firebase',
-  traceStore: 'firebase',
   logLevel: 'debug',
   enableTracingAndMetrics: true,
 };
