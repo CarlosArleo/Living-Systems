@@ -6,8 +6,8 @@
 import { onObjectFinalized } from "firebase-functions/v2/storage";
 import * as logger from "firebase-functions/logger";
 import { initializeApp } from "firebase-admin/app";
-import { run } from "@genkit-ai/firebase";
-import { integralAssessmentFlow } from "./flows/integralAssessment"; // CORRECTED: Import the actual flow.
+import { run } from "@genkit-ai/firebase/functions";
+import { processUploadedDocument } from "./flows/processing"; // CORRECTED: Import the new unified flow.
 
 // Initialize Firebase Admin SDK
 initializeApp();
@@ -15,22 +15,27 @@ initializeApp();
 
 /**
  * Cloud Function that triggers automatically when a new file is uploaded
- * to Cloud Storage. This function invokes the Genkit 'integralAssessmentFlow'.
+ * to Cloud Storage. This function invokes the new, unified Genkit flow
+ * 'processUploadedDocument'.
  */
-export const triggerIntegralAssessment = onObjectFinalized(
+export const triggerDocumentProcessing = onObjectFinalized(
   {
     bucket: process.env.GCLOUD_PROJECT! + ".appspot.com",
-    cpu: 2, // Allocate more CPU for potential AI processing
+    cpu: 2,
+    memory: '1GiB', // Allocate sufficient memory for file operations
   },
   async (event) => {
     const fileBucket = event.bucket;
     const filePath = event.data.name;
+    const metadata = event.data.metadata || {};
 
-    logger.info(`[triggerIntegralAssessment] New file detected: ${filePath} in bucket: ${fileBucket}`);
+    logger.info(`[triggerDocumentProcessing] New file detected: ${filePath} in bucket: ${fileBucket}`);
 
     // Ensure the function only triggers for files in the correct directory.
-    if (!filePath.startsWith('uploads/')) {
-        logger.log(`File path ${filePath} is not in 'uploads/' directory. Skipping.`);
+    // Path format: places/{placeId}/{documentId}/{fileName}
+    const pathParts = filePath.split('/');
+    if (pathParts[0] !== 'places' || pathParts.length < 4) {
+        logger.log(`File path ${filePath} is not a valid document upload path. Skipping.`);
         return;
     }
 
@@ -44,37 +49,37 @@ export const triggerIntegralAssessment = onObjectFinalized(
       return;
     }
 
-    // Extract placeId and docId from the file path.
-    // Expected path: uploads/{userId}/{placeId}/{docId}/{fileName}
-    const pathParts = filePath.split('/');
-    if (pathParts.length < 5) {
-      logger.warn(`File path ${filePath} does not match expected structure 'uploads/{userId}/{placeId}/{docId}/{fileName}'. Skipping.`);
+    const placeId = pathParts[1];
+    const documentId = pathParts[2];
+    const fileName = pathParts[pathParts.length - 1];
+    const uploadedBy = metadata.uploadedBy; // Get UID from custom metadata
+
+    if (!uploadedBy) {
+      logger.error(`[triggerDocumentProcessing] File is missing 'uploadedBy' custom metadata. Cannot process.`, { filePath });
       return;
     }
-    const placeId = pathParts[2];
-    const docId = pathParts[3];
 
     try {
-      logger.log(`Invoking integralAssessmentFlow for place: ${placeId}, doc: ${docId}`);
+      logger.log(`Invoking processUploadedDocument for place: ${placeId}, doc: ${documentId}`);
       
-      // Use the Genkit 'run' utility to securely call the flow.
-      // This automatically handles authentication and context passing.
-      // The flow itself will handle getting a signedURL and doing the analysis.
-      const result = await run(integralAssessmentFlow, {
+      // Use the Genkit 'run' utility to securely call the unified flow.
+      const result = await run(processUploadedDocument, {
         placeId: placeId,
-        documentId: docId,
+        documentId: documentId,
         storagePath: filePath,
+        fileName: fileName,
+        uploadedBy: uploadedBy,
       });
 
-      logger.info(`[triggerIntegralAssessment] Successfully invoked flow. Result:`, result);
+      logger.info(`[triggerDocumentProcessing] Successfully invoked flow. Result:`, result);
 
     } catch (error) {
-      logger.error(`[triggerIntegralAssessment] Failed to invoke integralAssessmentFlow for ${filePath}.`, {
+      logger.error(`[triggerDocumentProcessing] Failed to invoke processUploadedDocument for ${filePath}.`, {
         error,
         placeId,
-        docId,
+        documentId,
       });
-      // Optionally, update the Firestore document status to 'failed' here.
+      // The flow itself handles setting the 'failed' status in Firestore.
     }
   }
 );
