@@ -1,6 +1,11 @@
 /**
  * @fileoverview The local development server entry point for Genkit.
- * This file imports the configured 'ai' instance to register all flows
- * and then starts the server via the Genkit CLI.
+ * This file imports the configured 'ai' instance AND all defined flows
+ * to register them with the server.
  */
-import './genkit'; // This MUST be the first import to register all flows.
+
+// This MUST be the first import to register the 'ai' instance.
+import './genkit'; 
+
+// This MUST be the second import to register all the flows.
+import './flows';
