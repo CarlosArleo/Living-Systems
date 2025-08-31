@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview A unified Genkit flow to handle the entire document processing pipeline,
  * from metadata creation to AI analysis. This flow is designed to be triggered by
@@ -68,9 +69,10 @@ export const processUploadedDocument = ai.defineFlow(
       message: z.string(),
     }),
   },
-  async ({ placeId, documentId, storagePath, fileName, uploadedBy }) => {
-    // Genkit automatically validates the input against the schema before execution.
-    // If the trigger passes an empty placeId or documentId, the flow will fail here.
+  async (input) => {
+    // CORRECTED: Destructure the payload from the input object.
+    // This is the fix for the data-handling error.
+    const { placeId, documentId, storagePath, fileName, uploadedBy } = input;
     
     const docRef = db.collection('places').doc(placeId).collection('documents').doc(documentId);
 
