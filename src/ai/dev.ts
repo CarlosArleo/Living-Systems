@@ -2,15 +2,15 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-// Flows will be imported for their side effects in this file.
+// This is the entry point for the Genkit developer UI.
+// It imports all flows to ensure they are registered with the framework.
 import './flows/simple';
-// import './flows/harmonize'; // Deprecated
+import './flows/harmonize'; // For client-side metadata creation
 import './flows/knowledge';
 import './flows/rag-flow';
 import './flows/story-flow';
 import './flows/embed';
-import './flows/generateCode'; // Added Generator Agent
-import './flows/critiqueCode'; // Added Critique Agent
-import './flows/meta-prompter'; // Added Meta-Prompter Agent
-// import './flows/integralAssessment'; // DELETED: This flow is now part of processing.ts
-import './flows/processing'; // The new, unified flow
+import './flows/generateCode';
+import './flows/critiqueCode';
+import './flows/meta-prompter';
+import './flows/integralAssessment'; // For background analysis
