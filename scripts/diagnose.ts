@@ -49,7 +49,7 @@ async function runPreFlightChecks() {
  */
 async function parseConstitution(): Promise<Map<string, { filePath: string }>> {
   console.log('\n--- FLOW AUDIT ---');
-  console.log('Parsing Flow System Constitution...');
+  console.log('[i] Parsing Flow System Constitution...');
   const constitutionPath = path.join(process.cwd(), 'docs', 'FLOW_SYSTEM_CONSTITUTION.md');
   const content = await fs.readFile(constitutionPath, 'utf-8');
   
@@ -63,7 +63,7 @@ async function parseConstitution(): Promise<Map<string, { filePath: string }>> {
     flows.set(name.trim(), { filePath: filePath.trim() });
   }
   
-  console.log(`Found ${flows.size} flows in the constitution.`);
+  console.log(`[✓] Found ${flows.size} flows declared in the constitution.`);
   return flows;
 }
 
@@ -97,7 +97,13 @@ async function checkWiring(filePath: string): Promise<boolean> {
  * The main diagnostic agent function.
  */
 async function runDiagnostics() {
-  console.log('--- RDI System Diagnostic Agent ---');
+  console.log('\n=================================================');
+  console.log('      RDI PLATFORM - SYSTEM DIAGNOSTIC AGENT     ');
+  console.log('=================================================\n');
+  console.log('Purpose: This script performs a static analysis of the AI flow system.');
+  console.log('It audits the project structure against the rules defined in your documentation,');
+  console.log('ensuring that all declared flows exist and are correctly wired into the application.');
+  console.log('This is a check of the system\'s architecture, not a functional test of the AI models.\n');
   
   await runPreFlightChecks();
 
@@ -133,22 +139,31 @@ async function runDiagnostics() {
   }
 
   // --- Print Report ---
-  console.log('\n--- DIAGNOSTIC REPORT ---');
-  console.log('Auditing system against docs/FLOW_SYSTEM_CONSTITUTION.md...\n');
+  console.log('\n--- DIAGNOSTIC AUDIT REPORT ---');
+  console.log('Auditing flows listed in docs/FLOW_SYSTEM_CONSTITUTION.md...\n');
 
   const maxNameLength = Math.max(...report.map(f => f.name.length));
   
+  // Table Header
+  const headerName = 'Flow Name'.padEnd(maxNameLength + 2);
+  const headerStatus = 'File Status'.padEnd(18);
+  const headerRegistration = 'Registered in index.ts?'.padEnd(28);
+  const headerWiring = 'Wired to AI Core?';
+  console.log(`${headerName} | ${headerStatus} | ${headerRegistration} | ${headerWiring}`);
+  console.log(`${'-'.repeat(maxNameLength + 2)}-+-${'-'.repeat(18)}-+-${'-'.repeat(28)}-+-${'-'.repeat(headerWiring.length)}`);
+
+
   report.forEach(flow => {
-    const statusMissing = flow.isMissing ? '❌ MISSING' : '✅ OK';
-    const statusRegistered = flow.isRegistered ? '✅ Registered' : '❌ NOT REGISTERED';
-    const statusWired = flow.isWired ? '✅ Wired' : '❌ WIRING CHECK FAILED';
-    
     const paddedName = `\`${flow.name}\``.padEnd(maxNameLength + 2);
     
     if(flow.isMissing) {
-         console.log(`${paddedName} | ${statusMissing.padEnd(18)} | File not found at ${flow.filePath}`);
+        const statusMissing = '❌ FILE NOT FOUND'.padEnd(18);
+        console.log(`${paddedName} | ${statusMissing} | Path: ${flow.filePath}`);
     } else {
-        console.log(`${paddedName} | ${statusRegistered.padEnd(18)} | ${statusWired}`);
+        const statusOk = '✅ OK'.padEnd(18);
+        const statusRegistered = flow.isRegistered ? '✅ Yes'.padEnd(28) : '❌ No'.padEnd(28);
+        const statusWired = flow.isWired ? '✅ Yes' : '❌ No';
+        console.log(`${paddedName} | ${statusOk} | ${statusRegistered} | ${statusWired}`);
     }
   });
   
