@@ -7,7 +7,7 @@
  */
 'use server';
 
-import { ai } from '../genkit';
+import { ai, googleAI } from '../genkit';
 import { z } from 'zod';
 import * as admin from 'firebase-admin';
 
