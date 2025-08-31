@@ -1,31 +1,21 @@
 /**
- * @fileoverview The main Genkit configuration file for the RDI Platform.
- * This file defines the central 'ai' instance with all its plugins and settings.
+ * @fileoverview Central Genkit configuration file.
+ * This file configures all plugins and sets project-wide defaults.
  */
-import { genkit } from 'genkit';
+import { configure } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
-import { googleCloud } from '@genkit-ai/google-cloud';
-import 'dotenv/config'; // Load environment variables from .env file
+import { firebase } from '@genkit-ai/firebase';
+import { dotprompt } from '@genkit-ai/dotprompt';
+import 'dotenv/config';
 
-// Create the configured AI instance - this is the "central brain"
-export const ai = genkit({
+export default configure({
   plugins: [
-    // The Google AI plugin is used for interacting with Gemini models.
     googleAI(),
-    // The Google Cloud plugin handles integration with GCP services,
-    // including Firebase for tracing and flow state storage.
-    googleCloud(),
+    firebase(), // Correctly initialize the firebase plugin for auth, flow state, and traces
+    dotprompt({ dir: './src/ai/prompts' }),
   ],
-  // Configure Genkit to use Firestore for persisting flow states and traces.
-  // This is the modern, correct way to integrate with Firebase for these features.
-  flowStateStore: 'firebase',
-  traceStore: 'firebase',
-  // Set a default model for convenience in other flows.
-  model: googleAI.model('gemini-1.5-pro'),
-  // Standard operational settings.
+  flowStateStore: 'firebase', // Persist flow states in Firestore
+  traceStore: 'firebase',     // Persist traces in Firestore
   logLevel: 'debug',
   enableTracingAndMetrics: true,
 });
-
-// Export the googleAI plugin for direct use in other files if needed
-export { googleAI };
