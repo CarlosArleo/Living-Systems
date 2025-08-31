@@ -12,12 +12,13 @@
 import { ai } from '../genkit';
 import { z } from 'zod';
 import * as admin from 'firebase-admin';
+import { projectConfig } from '../config';
 
 // --- Robust Firebase Admin SDK Initialization ---
 if (!admin.apps.length) {
   try {
     admin.initializeApp({
-      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+      storageBucket: projectConfig.storageBucket,
     });
   } catch (e) {
     console.error('CRITICAL: Firebase Admin SDK initialization failed!', e);

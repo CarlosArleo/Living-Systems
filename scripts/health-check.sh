@@ -38,7 +38,7 @@ fi
 
 # 2. CHECK TYPESCRIPT COMPILATION
 echo -e "\n🔧 Checking TypeScript compilation..."
-if npx tsc --noEmit --quiet; then
+if npx tsc --noEmit; then
     echo -e "${GREEN}✅ TypeScript compilation successful${NC}"
 else
     echo -e "${RED}❌ ISSUE: TypeScript compilation errors found${NC}"

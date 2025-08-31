@@ -6,10 +6,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import * as admin from 'firebase-admin';
 import { getAuth } from 'firebase-admin/auth';
 import { getStorage } from 'firebase-admin/storage';
+import { projectConfig } from '@/ai/config';
 
 if (!admin.apps.length) {
   try {
-    admin.initializeApp();
+    admin.initializeApp({
+      storageBucket: projectConfig.storageBucket,
+    });
   } catch (e) {
     console.error('CRITICAL: Firebase Admin SDK initialization failed in API route!', e);
   }
@@ -52,7 +55,8 @@ export async function DELETE(
 
     // 2. Delete the associated file from Cloud Storage if it exists
     if (docData?.storagePath) {
-        const fileRef = storage.bucket().file(docData.storagePath);
+        const bucket = storage.bucket(projectConfig.storageBucket);
+        const fileRef = bucket.file(docData.storagePath);
         await fileRef.delete().catch(err => console.error(`Failed to delete file from storage, but continuing: ${err.message}`));
         console.log(`[Delete API] Deleted file from Storage: ${docData.storagePath}`);
     }

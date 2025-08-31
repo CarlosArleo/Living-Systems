@@ -112,8 +112,7 @@ export const processUploadedDocument = ai.defineFlow(
       // Step 2: Perform Analysis
       console.log(`[processUploadedDocument] Starting analysis for doc: ${documentId}`);
       
-      // FIXED: Get bucket and file reference properly
-      const bucket = storage.bucket('rdd-applicationback.firebasestorage.app');
+      const bucket = storage.bucket(projectConfig.storageBucket);
       const fileRef = bucket.file(storagePath);
       
       const [signedUrl] = await fileRef.getSignedUrl({
