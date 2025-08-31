@@ -13,3 +13,4 @@ export * from './knowledge';
 export * from './rag-flow';
 export * from './simple';
 export * from './story-flow';
+export * from './meta-prompter'; // Added missing export
