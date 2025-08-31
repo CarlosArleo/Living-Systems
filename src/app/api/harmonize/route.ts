@@ -1,41 +1,60 @@
 
 /**
- * @fileOverview API route to trigger the data harmonization flow.
+ * @fileOverview API route to trigger the initial data harmonization (metadata creation) flow.
+ * This is called by the client immediately after uploading a file to Cloud Storage.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { harmonizeDataOnUpload } from '@/ai/flows/harmonize';
+import { getAuth } from 'firebase-admin/auth';
+import * as admin from 'firebase-admin';
+
+if (!admin.apps.length) {
+    try {
+      admin.initializeApp();
+    } catch (e) {
+      console.error('CRITICAL: Firebase Admin SDK initialization failed in API route!', e);
+    }
+}
 
 // This schema validates the incoming request from the client.
-// It now expects a storagePath instead of a fileDataUri.
 const HarmonizeApiInputSchema = z.object({
   placeId: z.string().min(1, 'placeId is required.'),
-  capitalCategory: z.enum(['Natural', 'Human', 'Social', 'Manufactured', 'Financial']),
+  initialCapitalCategory: z.string(),
   storagePath: z.string().min(1, 'storagePath is required.'),
   sourceFile: z.string().min(1, 'sourceFile is required.'),
 });
 
 export async function POST(req: NextRequest) {
   try {
+    const idToken = req.headers.get('authorization')?.split('Bearer ')[1];
+    if (!idToken) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const decodedToken = await getAuth().verifyIdToken(idToken);
+    const uid = decodedToken.uid;
+
+
     const json = await req.json();
     const validation = HarmonizeApiInputSchema.safeParse(json);
 
     if (!validation.success) {
-      console.error('[Harmonize API] Invalid request body:', validation.error.issues);
       return NextResponse.json(
         { error: 'Invalid request body', issues: validation.error.issues },
         { status: 400 }
       );
     }
     
-    const result = await harmonizeDataOnUpload(validation.data);
+    // CORRECTED: Pass the validated data and the verified UID
+    // to match the flow's input schema exactly.
+    const result = await harmonizeDataOnUpload({ 
+        ...validation.data,
+        uploadedBy: uid,
+     });
     return NextResponse.json(result);
 
   } catch (error) {
     console.error('[Harmonize API] An unexpected error occurred:', error);
-    if (error instanceof SyntaxError) {
-        return NextResponse.json({ error: 'Invalid JSON provided in request body.' }, { status: 400 });
-    }
     const errorMessage =
       error instanceof Error ? error.message : 'An unknown server error occurred.';
     return NextResponse.json(

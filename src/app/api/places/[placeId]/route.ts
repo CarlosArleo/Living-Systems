@@ -66,9 +66,10 @@ export async function GET(
     // 3. Aggregate the data.
     const analyzedDocs = analyzedDocsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-    // Extract all GeoJSON strings into a single array for the map.
+    // CORRECTED: Extract all GeoJSON strings into a single array for the map.
+    // The 'doc' object from the snapshot has a `data()` method.
     const allGeoJSON = analyzedDocs
-      .map(doc => doc.geoJSON)
+      .map(doc => doc.geoJSON as string)
       .filter(Boolean); // Filter out any undefined/null values
 
     const aggregatedData = {

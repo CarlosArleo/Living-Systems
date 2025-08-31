@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Allow requests from Cloud Workstations and other related domains for development.
+  // Allow requests from Cloud Workstations and other Firebase domains
   allowedDevOrigins: [
     'localhost',
     '*.cloudworkstations.dev',
@@ -9,8 +9,9 @@ const nextConfig = {
     '*.web.app',
   ],
   experimental: {
-    // Ensures server-side packages are handled correctly by Next.js.
-    serverComponentsExternalPackages: ['@genkit-ai/core', '@genkit-ai/googleai']
+    // CORRECT: This tells Next.js to treat these packages as external
+    // on the server, preventing them from being bundled with client code.
+    serverComponentsExternalPackages: ['@genkit-ai/core', '@genkit-ai/googleai', 'firebase-admin'],
   },
 };
 
