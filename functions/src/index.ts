@@ -81,10 +81,3 @@ export const triggerIntegralAssessment = onObjectFinalized(
     }
   }
 );
-
-// We need a placeholder for the actual Genkit flow that will be called.
-// This will be properly implemented in a separate file later.
-// For now, this allows the trigger to compile.
-const integralAssessmentFlow = {
-  name: "integralAssessmentFlow",
-};
