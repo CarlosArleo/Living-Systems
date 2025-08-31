@@ -1,11 +1,13 @@
 /**
  * @fileOverview Schemas and retriever definitions for the knowledge and RAG flows.
  */
+'use server';
 
 import { z } from 'zod';
-import { ai } from '@/ai/genkit';
+import { ai } from '../genkit';
 import { googleAI } from '@genkit-ai/googleai';
-import { defineFirestoreRetriever } from '@genkit-ai/firebase/retriever';
+// CORRECTED: Import `defineFirestoreRetriever` from the main package.
+import { defineFirestoreRetriever } from '@genkit-ai/firebase';
 import * as admin from 'firebase-admin';
 
 // This file does not re-initialize firebase-admin, it assumes it's been
@@ -52,11 +54,9 @@ export type RagQueryOutput = z.infer<typeof RagQueryOutputSchema>;
 
 /**
  * Defines a generic retriever for the 'knowledge' collection in Firestore.
- * This is the modern, correct API usage for Genkit v1.18.0.
- * Filtering by placeId is handled dynamically in the RAG flow itself.
+ * CORRECTED: The `ai` instance must be passed as the first argument to the retriever.
  */
-// CORRECTED: Pass the `ai` instance as the first argument.
-export const knowledgeRetriever = defineFirestoreRetriever({
+export const knowledgeRetriever = defineFirestoreRetriever(ai, {
   name: `knowledgeRetriever`,
   label: 'RDI Knowledge Base',
   firestore: db,
