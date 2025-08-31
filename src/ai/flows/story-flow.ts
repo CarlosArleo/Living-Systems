@@ -3,7 +3,6 @@
  * @fileOverview A flow for synthesizing a "Story of Place" narrative from
  *               all available document summaries for a given place.
  */
-'use server';
 
 import { ai, googleAI } from '../genkit';
 import {

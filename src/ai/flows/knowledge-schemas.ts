@@ -1,7 +1,6 @@
 /**
  * @fileOverview Schemas and retriever definitions for the knowledge and RAG flows.
  */
-'use server';
 
 import { z } from 'zod';
 import { ai, googleAI } from '../genkit';
