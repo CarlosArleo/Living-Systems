@@ -24,3 +24,12 @@
 {"id":"d962f210a132b3d86e7e5e2c6b788748","type":"flow","start":1756668785330,"name":"processUploadedDocument","end":1756668793205.8481,"status":0}
 {"id":"529a49e59bdba823d6de6e3fa1994bd9","type":"flow","start":1756668803815,"name":"indexerFlow","end":1756668804666.1306,"status":0}
 {"id":"efdcceef9dde2e3e2b90b4b363e4d3ab","type":"flow","start":1756668808467,"name":"generateStoryOfPlaceFlow","end":1756668808745.7117,"status":2}
+{"id":"af1c162bc04141d6f18eb93d2affb036","type":"flow","start":1756668938705,"name":"embedText","end":1756668939037.5083,"status":0}
+{"id":"89ce9df2dc366c7c9f4cf19587043988","type":"flow","start":1756668946213,"name":"indexerFlow","end":1756668946990.474,"status":0}
+{"id":"eaadc876ebfc7b560c8b941b55e0dd65","type":"flow","start":1756668950464,"name":"indexerFlow","end":1756668951207.9595,"status":0}
+{"id":"2d0585e22d6efc324ead389dbb0879b1","type":"flow","start":1756668953063,"name":"generateStoryOfPlaceFlow","end":1756668953261.3118,"status":2}
+{"id":"1c7d52071c3f849c6ec206dd51996a46","type":"flow","start":1756668956881,"name":"generateMasterPrompt","end":1756668968320.5444,"status":0}
+{"id":"e6fe34338b65fd8d1f3b68e54a2621bc","type":"flow","start":1756668983283,"name":"critiqueCode","end":1756668983283.3582,"status":0}
+{"id":"b10f91489fc8d505add165065bd712d3","type":"flow","start":1756668987734,"name":"embedText","end":1756668988063.7024,"status":0}
+{"id":"3d8b589a99fd513d7934dfbac3533847","type":"flow","start":1756668992698,"name":"embedText","end":1756668993021.0825,"status":0}
+{"id":"92dccd81b3b5e2313725522c68b869d8","type":"flow","start":1756669011431,"name":"generateMasterPrompt","end":1756669023826.4084,"status":0}
