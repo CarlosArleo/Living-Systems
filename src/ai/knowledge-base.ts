@@ -93,3 +93,4 @@ export async function retrieveRelevantContext(
 
   return similarities.slice(0, topK).map((item) => item.text);
 }
+

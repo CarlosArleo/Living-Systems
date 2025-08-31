@@ -88,3 +88,4 @@ if (!task || !outputFile) {
 }
 
 runDevelopmentCycle(task, outputFile);
+
