@@ -13,6 +13,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "health-check": "bash scripts/health-check.sh",
     "postinstall": "npx update-browserslist-db@latest",
     "validate-packages": "npm list genkit @genkit-ai/core @genkit-ai/firebase @genkit-ai/googleai typescript"
   },
