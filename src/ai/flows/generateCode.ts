@@ -38,9 +38,10 @@ export const generateCode = ai.defineFlow(
   async (input) => {
     let prompt: string;
 
-    // Check if this is a correction task
+    // Check if this is a correction task by looking for the 'failedCode' property
     if ('failedCode' in input) {
-      // Correction Prompt
+      // This is a correction prompt.
+      console.log('[GeneratorAgent] Received correction request.');
       prompt = `
         You are a senior software engineer. The previous code you generated failed its quality and security audit.
         Your task is to rewrite the code to address every issue identified in the audit report below.
@@ -70,7 +71,8 @@ export const generateCode = ai.defineFlow(
         Now, provide the corrected and improved version of the code. Only output the raw code, with no explanations or markdown.
       `;
     } else {
-      // Initial Generation Prompt
+      // This is an initial generation prompt.
+      console.log('[GeneratorAgent] Received initial generation request.');
       prompt = `
         You are an expert software engineer. Your task is to write code that accomplishes the following task.
         You must adhere to all principles and standards outlined in the provided context.

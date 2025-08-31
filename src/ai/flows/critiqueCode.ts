@@ -40,6 +40,7 @@ export const critiqueCode = ai.defineFlow(
       You MUST provide your feedback in the following structured Markdown format. Be objective, specific, and provide actionable recommendations.
 
       ### Code Audit Report
+
       **1. Issues Found:**
       (A numbered list of every issue you identified, categorized by the criteria above. For each issue, provide a specific code snippet and explain the flaw. If no issues are found, state "No issues found.")
 
