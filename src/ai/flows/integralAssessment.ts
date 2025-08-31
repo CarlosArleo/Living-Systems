@@ -60,6 +60,7 @@ const FlowOutputSchema = z.object({
 
 // Helper to load the prompt template from the file system.
 async function loadPromptTemplate(): Promise<string> {
+  // This path assumes the script is run from the project root.
   const promptPath = path.join(process.cwd(), 'src/ai/prompts/integralAssessment.prompt');
   return await fs.readFile(promptPath, 'utf-8');
 }
@@ -76,14 +77,16 @@ export const integralAssessmentFlow = ai.defineFlow(
       const docRef = db.collection('places').doc(placeId).collection('documents').doc(documentId);
       
       try {
-        await docRef.update({ status: 'analyzing' });
-
+        // CORRECTED LOGIC: First, get the document to ensure it exists.
         const docSnapshot = await docRef.get();
         if (!docSnapshot.exists) {
-          throw new Error(`Document ${documentId} not found in place ${placeId}.`);
+          throw new Error(`Document ${documentId} not found in place ${placeId}. This flow requires the document metadata to exist before running.`);
         }
-        const docData = docSnapshot.data()!;
+        
+        // Now that we know it exists, update the status.
+        await docRef.update({ status: 'analyzing' });
 
+        const docData = docSnapshot.data()!;
 
         const fileRef = storage.bucket().file(storagePath);
         const [signedUrl] = await fileRef.getSignedUrl({
@@ -126,6 +129,7 @@ export const integralAssessmentFlow = ai.defineFlow(
 
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error during analysis.';
+        // Update the document with a 'failed' status for observability.
         await docRef.update({ status: 'failed', error: errorMessage });
         throw error;
       }
