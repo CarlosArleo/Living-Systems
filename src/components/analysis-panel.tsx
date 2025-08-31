@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   LoaderCircle,
   Plus,
+  User,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,7 +28,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { getFirestore, collection, onSnapshot, query, orderBy, type DocumentData } from 'firebase/firestore';
-import { getAuth, onAuthStateChanged, type User } from 'firebase/auth';
+import { getAuth, onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
 import { getStorage, ref, uploadBytes } from "firebase/storage";
 import { app } from '@/lib/firebase';
 import { ScrollArea } from './ui/scroll-area';
@@ -57,7 +58,7 @@ export function AnalysisPanel({ onPlaceChange, selectedPlace, onLayerVisibilityC
   const [isCreatingPlace, setIsCreatingPlace] = React.useState(false);
   const [isCreatePlaceDialogOpen, setCreatePlaceDialogOpen] = React.useState(false);
 
-  const [user, setUser] = React.useState<User | null>(null);
+  const [user, setUser] = React.useState<FirebaseUser | null>(null);
     
   const [detailedPlaceData, setDetailedPlaceData] = React.useState<any>(null);
   const [isDetailLoading, setIsDetailLoading] = React.useState(false);
@@ -257,7 +258,7 @@ export function AnalysisPanel({ onPlaceChange, selectedPlace, onLayerVisibilityC
              <Dialog>
                 <DialogTrigger asChild>
                     <Button variant="ghost" className="w-full justify-start text-muted-foreground rounded-none">
-                        <UserIcon className="mr-2 h-4 w-4" />
+                        <User className="mr-2 h-4 w-4" />
                         User Profile
                     </Button>
                 </DialogTrigger>
