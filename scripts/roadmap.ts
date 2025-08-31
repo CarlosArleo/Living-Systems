@@ -1,6 +1,6 @@
 /**
  * @fileOverview The Regenerative Roadmap Agent.
- * This script reads the project roadmap, analyzes the current codebase,
+ * This script reads our strategic `DEVELOPMENT_ROADMAP.md`, analyzes the current codebase,
  * and generates a dynamic status report on our progress.
  * To run: `npx tsx scripts/roadmap.ts`
  */
@@ -21,7 +21,7 @@ interface RoadmapTier {
 }
 
 // --- Evidence Mapping ---
-// This is the core logic connecting the roadmap to the codebase.
+// This remains the core logic connecting the roadmap to the codebase.
 // Each key is a substring of a roadmap item. Each value is an array of
 // keywords or file paths that serve as "proof" of completion.
 const evidenceMap: Record<string, string[]> = {
