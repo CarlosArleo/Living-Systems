@@ -5,7 +5,6 @@
 
 import 'dotenv/config';
 import { ai, googleAI } from '../src/ai/genkit';
-import { embed } from '@genkit-ai/ai';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -23,17 +22,15 @@ async function processContextFile() {
     const contextContent = await fs.readFile(contextFilePath, 'utf-8');
 
     console.log('[Context Processor] Chunking document by Markdown headers...');
-    // FIXED: Corrected regex pattern
     const chunks = contextContent.split(/(?=^##\s|(?=^###\s))/m).filter(chunk => chunk.trim() !== '');
     console.log(`[Context Processor] Found ${chunks.length} chunks to process.`);
 
     const knowledgeBase = [];
     for (const chunk of chunks) {
-      if (chunk.trim().length < 10) continue; // Skip very small chunks
+      if (chunk.trim().length < 10) continue; 
 
       console.log(`[Context Processor] Embedding chunk starting with: "${chunk.substring(0, 50).replace(/\n/g, ' ')}..."`);
       
-      // CORRECT: Use the embed function with the configured embedder
       const embeddingResponse = await ai.embed({
         embedder: googleAI.embedder('text-embedding-004'),
         content: chunk,
@@ -41,8 +38,8 @@ async function processContextFile() {
 
       knowledgeBase.push({
         text: chunk,
-        // FIXED: embeddingResponse is an array, take the first element
-        embedding: embeddingResponse[0].embedding,
+        // CORRECTED: When embedding a single chunk, the embedding is directly on the response.
+        embedding: embeddingResponse.embedding,
       });
     }
 

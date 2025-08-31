@@ -18,7 +18,7 @@ export const embedText = ai.defineFlow(
       content: text,
     });
 
-    // CORRECTED: The embedding is directly on the response object, not in an array.
+    // CORRECTED: The embedding for a single content request is directly on the response object.
     return embeddingResponse.embedding;
   }
 );
