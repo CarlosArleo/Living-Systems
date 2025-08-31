@@ -3,46 +3,37 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- Helper Functions ---
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
-
-    // --- Rules for 'users' Collection ---
     match /users/{userId} {
-      allow read, write: if isOwner(userId);
+      // A user can only read and write their own profile document.
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // --- Rules for 'places' Collection ---
+    // Rules for the 'places' collection and its nested subcollections.
     match /places/{placeId} {
-      allow get, list: if isAuthenticated();
+      // Any authenticated user can read a place document.
+      allow read: if request.auth != null;
 
-      // Allow creation only if the user is authenticated and is the owner.
-      // Enforce the presence and integrity of required fields.
-      allow create: if isAuthenticated()
-                    && request.resource.data.createdBy == request.auth.uid
-                    && request.resource.data.createdAt == request.time
-                    && request.resource.data.name is string
-                    && request.resource.data.name.size() > 0;
+      // An authenticated user can create a place document ONLY if they set themselves as the creator.
+      allow create: if request.auth != null && request.resource.data.createdBy == request.auth.uid;
 
-      // Allow updates only by the owner, and prevent changing ownership or creation date.
-      allow update: if isOwner(resource.data.createdBy)
-                    && request.resource.data.createdBy == resource.data.createdBy
-                    && request.resource.data.createdAt == resource.data.createdAt;
-    }
+      // --- Documents Subcollection ---
+      match /documents/{docId} {
+        // Any authenticated user can read the document metadata and analysis results.
+        allow read: if request.auth != null;
 
-    // --- Rules for 'capitals' SUB-COLLECTION ---
-    match /places/{placeId}/capitals/{capitalDocId} {
-      // ANY authenticated user can READ the processed capital data.
-      allow read: if isAuthenticated();
+        // CRITICAL: No client-side writes are allowed.
+        // All analysis data MUST be written by the backend Admin SDK.
+        allow write: if false;
+      }
 
-      // NOBODY from the client-side can write. This forces all data processing
-      // through the backend Genkit flow, which uses the Admin SDK and bypasses these rules.
-      allow write: if false;
+      // --- Feedback Subcollection ---
+      match /feedback/{feedbackId} {
+        // Any authenticated user can read feedback comments.
+        allow read: if request.auth != null;
+
+        // An authenticated user can create feedback only if they are the author.
+        allow create: if request.auth != null && request.resource.data.authorId == request.auth.uid;
+      }
     }
   }
 }
