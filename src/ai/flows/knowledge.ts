@@ -1,9 +1,6 @@
-
 /**
  * @fileOverview A flow for indexing and storing knowledge in Firestore.
  */
-'use server';
-
 import { ai, googleAI } from '../genkit';
 import { z } from 'zod';
 import * as admin from 'firebase-admin';
