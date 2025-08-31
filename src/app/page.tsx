@@ -4,12 +4,11 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { getAuth, onAuthStateChanged, User } from 'firebase/auth';
-import { getFirestore, doc, onSnapshot, DocumentData } from 'firebase/firestore';
 import { app } from '@/lib/firebase';
 import { AnalysisPanel } from '@/components/analysis-panel';
 import { MapControlPanel } from '@/components/map-control-panel';
 import { StoryPanel } from '@/components/story-panel';
-import { FeedbackPanel } from '@/components/feedback-panel'; // Import the new component
+import { FeedbackPanel } from '@/components/feedback-panel';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { type MapRef } from 'react-map-gl';
 import { LoaderCircle } from 'lucide-react';
@@ -24,9 +23,11 @@ const MapComponent = dynamic(() => import('@/components/map'), {
 
 export default function Home() {
   const mapRef = React.useRef<MapRef>(null);
-  const [selectedPlace, setSelectedPlace] = React.useState<DocumentData | null>(null);
+  const [selectedPlace, setSelectedPlace] = React.useState<any | null>(null);
   const [user, setUser] = React.useState<User | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [mapData, setMapData] = React.useState<any | null>(null);
+
   const [visibleLayers, setVisibleLayers] = React.useState({
     Natural: true,
     Human: true,
@@ -50,18 +51,27 @@ export default function Home() {
     return () => unsubscribe();
   }, [router]);
   
+  // This effect now fetches the aggregated data when a place is selected.
   React.useEffect(() => {
-    if (selectedPlace?.id) {
-      const db = getFirestore(app);
-      const placeDocRef = doc(db, 'places', selectedPlace.id);
-      const unsubscribe = onSnapshot(placeDocRef, (doc) => {
-        if (doc.exists()) {
-          setSelectedPlace({ id: doc.id, ...doc.data() });
-        }
-      });
-      return () => unsubscribe();
+    if (selectedPlace?.id && user) {
+        const fetchPlaceData = async () => {
+            try {
+                const token = await user.getIdToken();
+                const response = await fetch(`/api/places/${selectedPlace.id}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) throw new Error('Failed to fetch place data.');
+                const data = await response.json();
+                setMapData(data.mapData);
+            } catch (error) {
+                console.error("Error fetching place data:", error);
+            }
+        };
+        fetchPlaceData();
+    } else {
+      setMapData(null); // Clear map data when no place is selected
     }
-  }, [selectedPlace?.id]);
+  }, [selectedPlace, user]);
 
 
   if (loading || !user) {
@@ -76,9 +86,9 @@ export default function Home() {
   return (
     <ToastProvider>
       <main className="relative h-screen w-screen bg-background text-foreground">
-        <MapComponent mapRef={mapRef} selectedPlaceId={selectedPlace?.id} visibleLayers={visibleLayers}/>
+        <MapComponent mapRef={mapRef} mapData={mapData} visibleLayers={visibleLayers}/>
         <AnalysisPanel 
-          onPlaceChange={(place) => setSelectedPlace(place)}
+          onPlaceChange={setSelectedPlace}
           selectedPlace={selectedPlace}
           visibleLayers={visibleLayers}
           onLayerVisibilityChange={setVisibleLayers}

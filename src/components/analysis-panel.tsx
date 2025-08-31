@@ -6,9 +6,6 @@ import {
   ChevronLeft,
   LoaderCircle,
   Plus,
-  Database,
-  BrainCircuit,
-  User as UserIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,35 +26,30 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, type DocumentData } from 'firebase/firestore';
+import { getFirestore, collection, onSnapshot, query, orderBy, type DocumentData } from 'firebase/firestore';
 import { getAuth, onAuthStateChanged, type User } from 'firebase/auth';
 import { getStorage, ref, uploadBytes } from "firebase/storage";
 import { app } from '@/lib/firebase';
-import { DocumentDetailSheet } from './document-detail-sheet';
 import { ScrollArea } from './ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { Separator } from './ui/separator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { HolisticInquirySheet } from './holistic-inquiry-sheet';
 import { PlaceDetailView } from './place-detail-view';
 import { UserProfile } from './user-profile';
+import { UploadDialog } from './upload-dialog';
 
 type Place = {
   id: string;
   name: string;
 };
 
-type DocumentMetadata = DocumentData & {
-  id: string;
-  placeId: string;
-};
-
 type AnalysisPanelProps = {
   onPlaceChange: (place: Place | null) => void;
   selectedPlace: DocumentData | null;
+  onLayerVisibilityChange: (layers: any) => void;
+  visibleLayers: any;
 };
 
-export function AnalysisPanel({ onPlaceChange, selectedPlace }: AnalysisPanelProps) {
+export function AnalysisPanel({ onPlaceChange, selectedPlace, onLayerVisibilityChange, visibleLayers }: AnalysisPanelProps) {
   const [isOpen, setIsOpen] = React.useState(true);
   
   const [places, setPlaces] = React.useState<Place[]>([]);
@@ -65,16 +57,8 @@ export function AnalysisPanel({ onPlaceChange, selectedPlace }: AnalysisPanelPro
   const [isCreatingPlace, setIsCreatingPlace] = React.useState(false);
   const [isCreatePlaceDialogOpen, setCreatePlaceDialogOpen] = React.useState(false);
 
-  const [selectedDoc, setSelectedDoc] = React.useState<DocumentMetadata | null>(null);
   const [user, setUser] = React.useState<User | null>(null);
-  
-  const [file, setFile] = React.useState<File | null>(null);
-  const [isUploading, setIsUploading] = React.useState(false);
-  const [isAddDataOpen, setAddDataOpen] = React.useState(false);
-  const [isHolisticInquiryOpen, setHolisticInquiryOpen] = React.useState(false);
-  const [isIndexing, setIsIndexing] = React.useState(false);
-  
-  // State for the new detail view
+    
   const [detailedPlaceData, setDetailedPlaceData] = React.useState<any>(null);
   const [isDetailLoading, setIsDetailLoading] = React.useState(false);
   const [detailError, setDetailError] = React.useState<string | null>(null);
@@ -108,7 +92,6 @@ export function AnalysisPanel({ onPlaceChange, selectedPlace }: AnalysisPanelPro
     return () => unsubscribe();
   }, [user, toast]);
 
-  // Effect to fetch detailed data when a place is selected
   React.useEffect(() => {
     if (selectedPlace?.id && user) {
         const fetchDetails = async () => {
@@ -136,7 +119,7 @@ export function AnalysisPanel({ onPlaceChange, selectedPlace }: AnalysisPanelPro
         };
         fetchDetails();
     } else {
-        setDetailedPlaceData(null); // Clear data if no place is selected
+        setDetailedPlaceData(null);
     }
   }, [selectedPlace, user, toast]);
 
@@ -147,12 +130,19 @@ export function AnalysisPanel({ onPlaceChange, selectedPlace }: AnalysisPanelPro
     }
     setIsCreatingPlace(true);
     try {
-      const db = getFirestore(app);
-      await addDoc(collection(db, 'places'), {
-        name: newPlaceName,
-        createdBy: user.uid,
-        createdAt: serverTimestamp(),
+      const token = await user.getIdToken();
+      const response = await fetch('/api/places', {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({ name: newPlaceName }),
       });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.details || "Failed to create place.");
+      }
       toast({ title: "Place Created", description: `Successfully created "${newPlaceName}".` });
       setNewPlaceName('');
       setCreatePlaceDialogOpen(false);
@@ -161,72 +151,6 @@ export function AnalysisPanel({ onPlaceChange, selectedPlace }: AnalysisPanelPro
       toast({ variant: "destructive", title: "Error Creating Place", description: error instanceof Error ? error.message : "An unknown error occurred." });
     } finally {
       setIsCreatingPlace(false);
-    }
-  };
-
-  const handleBuildKnowledgeBase = async () => {
-    if (!selectedPlace?.id) return;
-    setIsIndexing(true);
-    toast({ title: "Building Knowledge Base...", description: "This may take a moment." });
-
-    try {
-        const response = await fetch('/api/index', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ placeId: selectedPlace.id }),
-        });
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.details || 'Failed to index documents.');
-        toast({ title: "Knowledge Base Updated", description: `Indexed ${result.documentsWritten} new insights.`});
-    } catch (error) {
-        console.error("Error building knowledge base:", error);
-        toast({ variant: 'destructive', title: "Indexing Failed", description: error instanceof Error ? error.message : "An unknown error occurred."});
-    } finally {
-        setIsIndexing(false);
-    }
-  };
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setFile(event.target.files ? event.target.files[0] : null);
-  };
-
-  const handleUpload = async (capitalCategory: string) => {
-    if (!user || !file || !selectedPlace?.id) {
-      toast({ variant: 'destructive', title: 'Missing Information' });
-      return;
-    }
-    setIsUploading(true);
-    toast({ title: 'Uploading document...', description: 'Your file is being saved securely.' });
-
-    try {
-      const storage = getStorage(app);
-      const storagePath = `uploads/${user.uid}/${selectedPlace.id}/${Date.now()}_${file.name}`;
-      const storageRef = ref(storage, storagePath);
-      await uploadBytes(storageRef, file);
-
-      const token = await user.getIdToken();
-      const response = await fetch('/api/harmonize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({
-          placeId: selectedPlace.id,
-          initialCapitalCategory: capitalCategory,
-          storagePath: storagePath,
-          sourceFile: file.name,
-        }),
-      });
-
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.details || result.error);
-      
-      toast({ title: 'Upload Successful', description: `'${file.name}' is now queued for analysis.` });
-      setFile(null);
-      setAddDataOpen(false);
-
-    } catch (error) {
-      toast({ variant: 'destructive', title: 'Upload Failed', description: error instanceof Error ? error.message : "Unknown error." });
-    } finally {
-      setIsUploading(false);
     }
   };
   
@@ -258,8 +182,9 @@ export function AnalysisPanel({ onPlaceChange, selectedPlace }: AnalysisPanelPro
         if (detailedPlaceData) {
             return <PlaceDetailView placeData={detailedPlaceData} onBack={() => onPlaceChange(null)} />;
         }
+         return <div className="flex h-full items-center justify-center"><LoaderCircle className="animate-spin" /></div>;
     }
-    // Default view: list of places
+    
     return (
         <div className="flex-1 flex flex-col min-h-0">
             <div className="p-3 space-y-2 mt-2">
@@ -325,11 +250,9 @@ export function AnalysisPanel({ onPlaceChange, selectedPlace }: AnalysisPanelPro
               </Button>
             </div>
           </div>
-           <Tabs defaultValue="analysis" className="flex-1 flex flex-col min-h-0">
-             <TabsContent value="analysis" className="flex-1 flex flex-col min-h-0 m-0">
+            <div className="flex-1 flex flex-col min-h-0 m-0">
               {renderPanelContent()}
-            </TabsContent>
-          </Tabs>
+            </div>
            <div className="flex-shrink-0 border-t border-border/20 p-2">
              <Dialog>
                 <DialogTrigger asChild>
@@ -351,13 +274,6 @@ export function AnalysisPanel({ onPlaceChange, selectedPlace }: AnalysisPanelPro
            </div>
         </Card>
       </div>
-      <DocumentDetailSheet document={selectedDoc} isOpen={!!selectedDoc} onOpenChange={(open) => !open && setSelectedDoc(null)} />
-       <HolisticInquirySheet 
-        isOpen={isHolisticInquiryOpen} 
-        onOpenChange={setHolisticInquiryOpen} 
-        placeId={selectedPlace?.id}
-        placeName={selectedPlace?.name || ''}
-      />
     </>
   );
 }
