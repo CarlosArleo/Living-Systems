@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -7,7 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { getFirestore, collection, onSnapshot, query, orderBy, Timestamp } from 'firebase/firestore';
+import { getFirestore, collection, onSnapshot, query, orderBy, Timestamp, type DocumentData } from 'firebase/firestore';
 import { app } from '@/lib/firebase';
 import type { User } from 'firebase/auth';
 import { formatDistanceToNow } from 'date-fns';
@@ -20,7 +21,7 @@ type Feedback = {
 };
 
 type FeedbackPanelProps = {
-  place: { id: string; name: string } | null;
+  place: DocumentData | null;
   user: User | null;
 };
 
