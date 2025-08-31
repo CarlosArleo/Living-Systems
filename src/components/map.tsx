@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from 'react';
@@ -71,7 +72,7 @@ export default function MapComponent({ mapRef, mapData, visibleLayers }: MapComp
         {allGeoJson && Object.entries(capitalLayerStyles).map(([capitalKey, style]) => (
           visibleLayers[capitalKey] && (
              <Source key={capitalKey} type="geojson" data={allGeoJson}>
-                <Layer {...style} filter={['==', ['get', 'capital'], capitalKey]} />
+                <Layer {...style} />
               </Source>
           )
         ))}

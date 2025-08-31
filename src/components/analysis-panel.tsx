@@ -29,7 +29,6 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { getFirestore, collection, onSnapshot, query, orderBy, type DocumentData } from 'firebase/firestore';
 import { getAuth, onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
-import { getStorage, ref, uploadBytes } from "firebase/storage";
 import { app } from '@/lib/firebase';
 import { ScrollArea } from './ui/scroll-area';
 import { cn } from '@/lib/utils';
@@ -41,11 +40,13 @@ import { UploadDialog } from './upload-dialog';
 type Place = {
   id: string;
   name: string;
+  // Add other potential fields from Firestore document
+  [key: string]: any;
 };
 
 type AnalysisPanelProps = {
   onPlaceChange: (place: Place | null) => void;
-  selectedPlace: DocumentData | null;
+  selectedPlace: Place | null; // CORRECTED TYPE
   onLayerVisibilityChange: (layers: any) => void;
   visibleLayers: any;
 };
