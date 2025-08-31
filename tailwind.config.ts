@@ -11,8 +11,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        body: ['Montserrat', 'sans-serif'],
-        headline: ['Montserrat', 'sans-serif'],
+        body: ['var(--font-space-grotesk)', 'sans-serif'],
+        headline: ['var(--font-space-grotesk)', 'sans-serif'],
         code: ['monospace'],
       },
       colors: {
