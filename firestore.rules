@@ -3,37 +3,46 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    match /users/{userId} {
-      // A user can only read and write their own profile document.
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    // Default deny: No access to any document unless explicitly allowed.
+    match /{document=**} {
+      allow read, write: if false;
     }
 
-    // Rules for the 'places' collection and its nested subcollections.
+    // Users Collection:
+    // - Anyone can create their own user document.
+    // - Users can only read and update their own document.
+    // - On update, only the 'displayName' can be changed.
+    match /users/{userId} {
+      allow read, update: if request.auth.uid == userId;
+      allow create: if request.auth.uid == userId;
+
+      // Validation: Ensure only 'displayName' is being modified on update.
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName']);
+    }
+
+    // Places Collection:
+    // - Authenticated users can read all places.
+    // - Authenticated users can create a place if the 'createdBy' field matches their UID.
     match /places/{placeId} {
-      // Any authenticated user can read a place document.
       allow read: if request.auth != null;
+      allow create: if request.auth.uid == request.resource.data.createdBy;
+    }
 
-      // An authenticated user can create a place document ONLY if they set themselves as the creator.
-      allow create: if request.auth != null && request.resource.data.createdBy == request.auth.uid;
-
-      // --- Documents Subcollection ---
-      match /documents/{docId} {
-        // Any authenticated user can read the document metadata and analysis results.
+    // Documents Subcollection:
+    // - Authenticated users can read documents.
+    // - Client-side writes (create, update, delete) are FORBIDDEN.
+    //   This forces all analysis to go through our secure backend.
+    match /places/{placeId}/documents/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+    
+    // Feedback Subcollection:
+    // - Authenticated users can read all feedback.
+    // - Authenticated users can create new feedback.
+    match /places/{placeId}/feedback/{feedbackId} {
         allow read: if request.auth != null;
-
-        // CRITICAL: No client-side writes are allowed.
-        // All analysis data MUST be written by the backend Admin SDK.
-        allow write: if false;
-      }
-
-      // --- Feedback Subcollection ---
-      match /feedback/{feedbackId} {
-        // Any authenticated user can read feedback comments.
-        allow read: if request.auth != null;
-
-        // An authenticated user can create feedback only if they are the author.
-        allow create: if request.auth != null && request.resource.data.authorId == request.auth.uid;
-      }
+        allow create: if request.auth.uid == request.resource.data.userId;
     }
   }
 }
