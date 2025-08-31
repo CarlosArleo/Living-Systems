@@ -4,19 +4,23 @@
 import 'dotenv/config';
 import { genkit, type GenkitOptions } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
-import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
+import { firebase } from '@genkit-ai/firebase';
+import { Dotprompt } from '@genkit-ai/dotprompt';
 
-// Enable Firebase telemetry
-enableFirebaseTelemetry();
+// Import all the flows so they are registered with the server.
+import './flows';
 
-// Define Genkit configuration, including automatic prompt loading
-const genkitOptions: GenkitOptions = {
-  promptDir: './src/ai/prompts',
+export const ai = genkit({
   plugins: [
     googleAI(),
-    // no manual Dotprompt instantiation needed
+    firebase({
+      flowStateStore: {
+        collection: 'flow-state',
+      },
+      traceStore: {
+        collection: 'traces',
+      },
+    }),
+    new Dotprompt({ dir: './src/ai/prompts' }),
   ],
-};
-
-export const ai = genkit(genkitOptions);
-export { googleAI };
+});
