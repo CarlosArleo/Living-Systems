@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview A script to run all major Genkit flows with test data.
  * This provides a simple way to validate that all flows are functioning correctly.
@@ -5,13 +6,14 @@
  */
 'use server';
 
-import { harmonizeDataOnUpload } from './harmonize';
-import { integralAssessmentFlow } from './integralAssessment';
+import { generateCode } from './generateCode';
+import { critiqueCode } from './critiqueCode';
 import { generateStoryOfPlace } from './story-flow';
 import { indexerFlow } from './knowledge';
 import { queryRdiKnowledgeBase } from './rag-flow';
-import { critiqueCode } from './critiqueCode';
 import * as admin from 'firebase-admin';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
 // --- Initialization ---
 if (!admin.apps.length) {
@@ -26,8 +28,8 @@ const db = admin.firestore();
 // A simple logger to make output clear
 const log = (title: string, data: any) => {
   console.log(`\n--- 🧪 Testing: ${title} ---`);
-  console.log('Input:');
-  console.log(JSON.stringify(data.input, null, 2));
+  // console.log('Input:');
+  // console.log(JSON.stringify(data.input, null, 2));
   console.log('\nOutput:');
   console.log(JSON.stringify(data.output, null, 2));
   console.log(`--- ✅ End Test: ${title} ---`);
@@ -47,36 +49,32 @@ async function runTests() {
   const placeId = `test-place-${Date.now()}`;
   const docId = `test-doc-${Date.now()}`;
   const userId = 'test-user-id';
+  const projectConstitution = await fs.readFile(path.join(process.cwd(), 'CONTEXT.md'), 'utf-8');
 
-  // Test 1: critiqueCode (with empty input to test guard clause)
-  try {
-    const critiqueInput = { codeToCritique: '', projectConstitution: '...' };
-    const critiqueOutput = await critiqueCode(critiqueInput);
-    log('Critique Code (Empty)', { input: critiqueInput, output: critiqueOutput });
-  } catch (e) {
-    logError('Critique Code (Empty)', e);
-  }
 
-  // Test 2: harmonizeDataOnUpload (creates the placeholder document)
+  // Test 1: critiqueCode (with valid input to test logic)
   try {
-    const harmonizeInput = {
-      placeId,
-      initialCapitalCategory: 'Natural',
-      storagePath: `uploads/${userId}/${placeId}/test-file.txt`,
-      sourceFile: 'test-file.txt',
-      uploadedBy: userId,
+    const critiqueInput = { 
+        codeToCritique: 'function add(a, b) { return a + b; }', 
+        projectConstitution: 'All functions must have TypeScript types.' 
     };
-    const harmonizeOutput = await harmonizeDataOnUpload(harmonizeInput);
-    log('Harmonize Document (Metadata Creation)', { input: harmonizeInput, output: harmonizeOutput });
+    const critiqueOutput = await critiqueCode(critiqueInput);
+    log('Critique Code', { input: critiqueInput, output: critiqueOutput });
   } catch (e) {
-    logError('Harmonize Document (Metadata Creation)', e);
+    logError('Critique Code', e);
   }
-  
-  // Note: Testing `integralAssessmentFlow` is complex in a script because it
-  // relies on a file actually existing in Cloud Storage and a Cloud Function trigger.
-  // We will skip its automated test here as manual testing via the UI is more practical for it.
-  console.log(`\n--- ⏭️ SKIPPING: Integral Assessment Flow ---`);
-  console.log('Reason: This flow requires a file in Cloud Storage and is best tested via the app UI or a dedicated integration test.');
+
+  // Test 2: generateCode (initial generation)
+  try {
+      const genCodeInput = {
+          taskDescription: "A simple function to add two numbers.",
+          context: ["All functions must use TypeScript and have JSDoc comments."],
+      };
+      const genCodeOutput = await generateCode(genCodeInput);
+      log('Generate Code (Initial)', { input: genCodeInput, output: genCodeOutput });
+  } catch (e) {
+      logError('Generate Code (Initial)', e);
+  }
 
 
   // To test the next flows, we'll manually add some analyzed data.
@@ -87,9 +85,12 @@ async function runTests() {
       analysis: {
           naturalCapital: { isPresent: true, summary: 'The creek has high levels of pollutants.', keyDataPoints: ['15% biodiversity decline'], extractedText: 'The full text about pollutants.'},
           socialCapital: { isPresent: true, summary: 'Community trust is low.', keyDataPoints: [], extractedText: 'Full text about trust.'}
-      }
+      },
+      sourceFile: 'mock_report.pdf',
+      uploadedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
   await db.collection('places').doc(placeId).collection('documents').doc(docId).set(mockAnalysisData);
+  await db.collection('places').doc(placeId).set({ name: 'Test Place for Integration Suite' });
   console.log('Mock data created.');
 
 
