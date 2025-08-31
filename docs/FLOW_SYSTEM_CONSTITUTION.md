@@ -26,7 +26,6 @@ This sequence ensures that by the time a flow is called, the core `ai` object an
 This section provides a detailed breakdown of every flow within the system.
 
 ### `critiqueCode`
-
 -   **File Path:** `src/ai/flows/critiqueCode.ts`
 -   **Purpose:** Acts as the "Critique Agent" to audit generated code against the project constitution for quality, security, and correctness.
 -   **Input Schema:** `CritiqueInputSchema`
@@ -36,7 +35,6 @@ This section provides a detailed breakdown of every flow within the system.
 -   **Constitution Directives:** `Generator-Critique Mandate`
 
 ### `embedText`
-
 -   **File Path:** `src/ai/flows/embed.ts`
 -   **Purpose:** A utility flow that converts a string of text into a numerical vector embedding.
 -   **Input Schema:** `z.string()`
@@ -46,7 +44,6 @@ This section provides a detailed breakdown of every flow within the system.
 -   **Constitution Directives:** (Foundational utility for RAG system)
 
 ### `generateCode`
-
 -   **File Path:** `src/ai/flows/generateCode.ts`
 -   **Purpose:** Acts as the "Generator Agent" to write or correct code based on a task description and contextual rules.
 -   **Input Schema:** `FlowInputSchema` (a union of `GenerateCodeInputSchema` and `CorrectCodeInputSchema`)
@@ -56,7 +53,6 @@ This section provides a detailed breakdown of every flow within the system.
 -   **Constitution Directives:** `Generator-Critique Mandate`, `AI Agent Interaction Protocols`
 
 ### `generateMasterPrompt`
-
 -   **File Path:** `src/ai/flows/meta-prompter.ts`
 -   **Purpose:** Acts as a "Meta-Prompter" to generate high-quality, structured Master Prompts for other AI agents.
 -   **Input Schema:** `MetaPrompterInputSchema` (z.string)
@@ -66,7 +62,6 @@ This section provides a detailed breakdown of every flow within the system.
 -   **Constitution Directives:** `AI Agent Interaction Protocols`
 
 ### `generateStoryOfPlaceFlow`
-
 -   **File Path:** `src/ai/flows/story-flow.ts`
 -   **Purpose:** Synthesizes all analyzed data for a place into a single, compelling "Story of Place" narrative.
 -   **Input Schema:** `StoryInputSchema`
@@ -75,18 +70,7 @@ This section provides a detailed breakdown of every flow within the system.
 -   **External Dependencies:** `firebase-admin`, `@genkit-ai/googleai`, `zod`
 -   **Constitution Directives:** `Mandate Potential-Based Framing`, `Enforce Wholeness`
 
-### `harmonizeDataFlow`
-
--   **File Path:** `src/ai/flows/harmonize.ts`
--   **Purpose:** Acts as the "Librarian" to create the initial metadata document in Firestore immediately after a file upload.
--   **Input Schema:** `HarmonizeDataInputSchema`
--   **Output Schema:** `HarmonizeDataOutputSchema`
--   **Internal Dependencies:** None
--   **External Dependencies:** `firebase-admin`, `zod`
--   **Constitution Directives:** (Part of the "Forced Backend Logic" pattern)
-
 ### `indexerFlow`
-
 -   **File Path:** `src/ai/flows/knowledge.ts`
 -   **Purpose:** An idempotent flow that creates and updates the vector knowledge base for a specific place.
 -   **Input Schema:** `IndexerInputSchema`
@@ -95,18 +79,7 @@ This section provides a detailed breakdown of every flow within the system.
 -   **External Dependencies:** `firebase-admin`, `@genkit-ai/googleai`, `zod`
 -   **Constitution Directives:** (Supports `Work with Wholes` via RAG)
 
-### `integralAssessmentFlow`
-
--   **File Path:** `src/ai/flows/integralAssessment.ts`
--   **Purpose:** Acts as the "Deep Analyst" to perform the comprehensive Five Capitals analysis on a document.
--   **Input Schema:** `FlowInputSchema`
--   **Output Schema:** `z.object({ documentId: z.string(), status: z.string() })`
--   **Internal Dependencies:** None
--   **External Dependencies:** `firebase-admin`, `@genkit-ai/googleai`, `zod`
--   **Constitution Directives:** `Enforce Wholeness`, `Forced Backend Logic`
-
 ### `myFirstFlow`
-
 -   **File Path:** `src/ai/flows/simple.ts`
 -   **Purpose:** A simple diagnostic flow used for initial system setup verification.
 -   **Input Schema:** `z.string()`
@@ -116,7 +89,6 @@ This section provides a detailed breakdown of every flow within the system.
 -   **Constitution Directives:** None
 
 ### `ragQueryFlow`
-
 -   **File Path:** `src/ai/flows/rag-flow.ts`
 -   **Purpose:** Powers the "Holistic Inquiry" feature by answering user questions based on the knowledge base.
 -   **Input Schema:** `RagQueryInputSchema`
@@ -124,6 +96,16 @@ This section provides a detailed breakdown of every flow within the system.
 -   **Internal Dependencies:** `knowledgeRetriever` (from `src/ai/flows/knowledge-schemas.ts`)
 -   **External Dependencies:** `@genkit-ai/googleai`, `zod`
 -   **Constitution Directives:** `Work with Wholes`, `Principle of Justification`
+
+### `processUploadedDocument`
+-   **File Path:** `src/ai/flows/processing.ts`
+-   **Purpose:** The single, unified, and sequential pipeline for the entire "Integral Assessment." Combines metadata creation and deep analysis to prevent race conditions.
+-   **Input Schema:** `FlowInputSchema`
+-   **Output Schema:** `z.object({ documentId: z.string(), status: z.string() })`
+-   **Internal Dependencies:** None
+-   **External Dependencies:** `firebase-admin`, `@genkit-ai/googleai`, `zod`
+-   **Constitution Directives:** `Enforce Wholeness`, `Forced Backend Logic`
+
 
 ---
 
