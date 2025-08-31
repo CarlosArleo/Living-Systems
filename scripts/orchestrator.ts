@@ -2,6 +2,7 @@
 /**
  * @fileOverview The main orchestrator script for the autonomous development cycle.
  */
+import 'dotenv/config'; // CRITICAL: Load environment variables at the very start.
 'use server';
 
 import { generateCode } from '../src/ai/flows/generateCode';
