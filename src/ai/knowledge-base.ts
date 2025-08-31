@@ -1,3 +1,4 @@
+
 /**
  * @fileOverview A utility for retrieving relevant context from the project's
  * knowledge base using vector embeddings and cosine similarity.
@@ -6,7 +7,8 @@
 
 import { promises as fs } from 'fs';
 import path from 'path';
-import { embedText } from './flows/embed';
+import { ai } from './genkit'; // Corrected: Import the central 'ai' instance
+import { googleAI } from '@genkit-ai/googleai'; // Corrected: Import googleAI for embedder
 
 type KnowledgeChunk = {
   text: string;
@@ -71,7 +73,17 @@ export async function retrieveRelevantContext(
     return [];
   }
 
-  const queryEmbedding = await embedText(taskDescription);
+  const embeddingResponse = await ai.embed({
+      embedder: googleAI.embedder('text-embedding-004'),
+      content: taskDescription,
+  });
+
+  const queryEmbedding = embeddingResponse[0].embedding;
+
+  if (!queryEmbedding) {
+      throw new Error("Failed to generate an embedding for the query.");
+  }
+
 
   const similarities = base.map((chunk) => ({
     text: chunk.text,

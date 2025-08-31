@@ -36,7 +36,7 @@ async function runDevelopmentCycle(taskDescription: string, outputFilePath: stri
     currentCode = await generateCode({
         taskDescription,
         context: relevantContextChunks,
-        ...(currentCode && auditReport && { failedCode: currentCode, critique: auditReport }),
+        ...(auditReport && { failedCode: currentCode, critique: auditReport }),
     });
 
     if (!currentCode) {

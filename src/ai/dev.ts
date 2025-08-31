@@ -12,3 +12,4 @@ import './flows/embed';
 import './flows/generateCode'; // Added Generator Agent
 import './flows/critiqueCode'; // Added Critique Agent
 import './flows/meta-prompter'; // Added Meta-Prompter Agent
+import './flows/integralAssessment'; // Added Integral Assessment Agent

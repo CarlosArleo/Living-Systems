@@ -1,57 +1,33 @@
 ---
 name: integralAssessmentPrompt
 model: gemini-1.5-pro
+input:
+  schema:
+    type: object
+    properties:
+      initialCapitalCategory:
+        type: string
+      sourceFile:
+        type: string
+      fileUrl:
+        type: string
 output:
   format: json
-  schema:
-    overallSummary: "A brief, 1-2 sentence overall summary of the document's main purpose."
-    geoJSON: "A valid GeoJSON FeatureCollection object. If no geographic data, return an empty FeatureCollection."
-    analysis:
-      naturalCapital:
-        isPresent: "Set to true if data related to this capital is present in the document, otherwise false."
-        summary: "A 2-3 sentence qualitative summary of the information available for this capital. If not present, state that the document does not contain this information."
-        keyDataPoints:
-          - "A key quantitative or qualitative data point for this capital. If none, return an empty array."
-        extractedText: "The complete, verbatim text of ALL paragraphs and sections from the document that are relevant to this specific capital. Preserve markdown formatting. If no text is relevant, this should be an empty string."
-      humanCapital:
-        isPresent: "Set to true if data related to this capital is present in the document, otherwise false."
-        summary: "A 2-3 sentence qualitative summary of the information available for this capital. If not present, state that the document does not contain this information."
-        keyDataPoints:
-          - "A key quantitative or qualitative data point for this capital. If none, return an empty array."
-        extractedText: "The complete, verbatim text of ALL paragraphs and sections from the document that are relevant to this specific capital. Preserve markdown formatting. If no text is relevant, this should be an empty string."
-      socialCapital:
-        isPresent: "Set to true if data related to this capital is present in the document, otherwise false."
-        summary: "A 2-3 sentence qualitative summary of the information available for this capital. If not present, state that the document does not contain this information."
-        keyDataPoints:
-          - "A key quantitative or qualitative data point for this capital. If none, return an empty array."
-        extractedText: "The complete, verbatim text of ALL paragraphs and sections from the document that are relevant to this specific capital. Preserve markdown formatting. If no text is relevant, this should be an empty string."
-      manufacturedCapital:
-        isPresent: "Set to true if data related to this capital is present in the document, otherwise false."
-        summary: "A 2-3 sentence qualitative summary of the information available for this capital. If not present, state that the document does not contain this information."
-        keyDataPoints:
-          - "A key quantitative or qualitative data point for this capital. If none, return an empty array."
-        extractedText: "The complete, verbatim text of ALL paragraphs and sections from the document that are relevant to this specific capital. Preserve markdown formatting. If no text is relevant, this should be an empty string."
-      financialCapital:
-        isPresent: "Set to true if data related to this capital is present in the document, otherwise false."
-        summary: "A 2-3 sentence qualitative summary of the information available for this capital. If not present, state that the document does not contain this information."
-        keyDataPoints:
-          - "A key quantitative or qualitative data point for this capital. If none, return an empty array."
-        extractedText: "The complete, verbatim text of ALL paragraphs and sections from the document that are relevant to this specific capital. Preserve markdown formatting. If no text is relevant, this should be an empty string."
 ---
-You are an expert data extractor for a Regenerative Development project. Your persona is a meticulous librarian crossed with a GIS analyst. Your task is to read the provided document and sort its content into the Five Capitals framework, and to extract any and all geospatial data.
+You are an expert data extractor for a Regenerative Development project. Your persona is a meticulous librarian crossed with a GIS analyst. Your task is to read the provided document and structure its content into the Five Capitals framework, and to extract any and all geospatial data.
 
-**CRITICAL INSTRUCTIONS:**
+CRITICAL INSTRUCTIONS:
 1.  You MUST use ONLY the information within the provided DOCUMENT CONTENT to answer. Do not use external knowledge or make assumptions.
 2.  Your primary job is EXTRACTION, not interpretation. You must pull the full, verbatim text for each relevant section.
 3.  If the document does not contain information for a specific capital, state that clearly in the summary and leave the extractedText field empty.
 4.  For GeoJSON, if you find a location (like an address, intersection, or place name) but no exact coordinates, you are NOT to invent coordinates. Instead, create a feature with null geometry and add a "note" property explaining the location description, e.g., { "note": "New Park at Elm and Oak" }.
 
-**DOCUMENT DETAILS:**
-- Initial Category Provided by User: "{{initialCategory}}"
+DOCUMENT DETAILS:
+- Initial Category Provided by User: "{{initialCapitalCategory}}"
 - Source File Name: "{{sourceFile}}"
-- Document Content: {{media url=signedUrl}}
+- Document Content: {{media url=fileUrl}}
 
-**EXTRACTION REQUIREMENTS:**
+EXTRACTION REQUIREMENTS:
 1.  Read the entire document content.
 2.  Provide a brief, 1-2 sentence overallSummary of the document's main purpose.
 3.  Extract ALL geographic information and format it as a single, valid GeoJSON FeatureCollection in the geoJSON field.
