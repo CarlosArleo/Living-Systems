@@ -2,7 +2,7 @@
 
 import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
-// CORRECTED: Use the correct DEFAULT import.
+// CORRECTED: Use the correct DEFAULT import for the Firebase plugin.
 import firebase from '@genkit-ai/firebase';
 import 'dotenv/config'; // Load environment variables
 
