@@ -5,7 +5,7 @@
  */
 'use server';
 
-import { ai } from './genkit';
+import { ai } from '@/ai/genkit';
 import { googleAI } from '@genkit-ai/googleai';
 import { promises as fs } from 'fs';
 import path from 'path';
@@ -78,7 +78,7 @@ export async function retrieveRelevantContext(
       content: taskDescription,
   });
   
-  const queryEmbedding = embeddingResponse;
+  const queryEmbedding = embeddingResponse[0].embedding;
 
   if (!queryEmbedding) {
       throw new Error("Failed to generate an embedding for the query.");
