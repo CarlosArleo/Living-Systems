@@ -259,7 +259,7 @@ export function AnalysisPanel({ onPlaceChange, selectedPlace }: AnalysisPanelPro
     }
     // Default view: list of places
     return (
-         <TabsContent value="analysis" className="flex-1 flex flex-col min-h-0 m-0">
+        <div className="flex-1 flex flex-col min-h-0">
             <div className="p-3 space-y-2 mt-2">
               <div className="flex items-center justify-between">
                 <h3 className="uppercase text-xs text-muted-foreground tracking-wider font-semibold">Places</h3>
@@ -297,7 +297,7 @@ export function AnalysisPanel({ onPlaceChange, selectedPlace }: AnalysisPanelPro
             <div className="flex-1 flex flex-col min-h-0 p-3 space-y-3">
                 <p className="text-center text-muted-foreground text-xs p-4">Select a place to see details.</p>
             </div>
-        </TabsContent>
+        </div>
     )
   }
 
@@ -323,7 +323,11 @@ export function AnalysisPanel({ onPlaceChange, selectedPlace }: AnalysisPanelPro
               </Button>
             </div>
           </div>
-          {renderPanelContent()}
+           <Tabs defaultValue="analysis" className="flex-1 flex flex-col min-h-0">
+             <TabsContent value="analysis" className="flex-1 flex flex-col min-h-0 m-0">
+              {renderPanelContent()}
+            </TabsContent>
+          </Tabs>
         </Card>
       </div>
       <DocumentDetailSheet document={selectedDoc} isOpen={!!selectedDoc} onOpenChange={(open) => !open && setSelectedDoc(null)} />
