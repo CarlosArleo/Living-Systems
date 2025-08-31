@@ -39,11 +39,11 @@ export const generateCode = ai.defineFlow(
     let prompt: string;
 
     // Check if this is a correction task by looking for the 'failedCode' property
-    if ('failedCode' in input) {
+    if ('failedCode' in input && input.failedCode && input.critique) {
       // This is a correction prompt.
       console.log('[GeneratorAgent] Received correction request.');
       prompt = `
-        You are a senior software engineer. The previous code you generated failed its quality and security audit.
+        You are an expert software engineer. The previous code you generated failed its quality and security audit.
         Your task is to rewrite the code to address every issue identified in the audit report below.
         You must not introduce any new functionality or deviate from the original requirements.
         The rewritten code must be of the highest quality and designed to pass the audit.
