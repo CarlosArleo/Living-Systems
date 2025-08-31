@@ -17,7 +17,7 @@
   "dependencies": {
     "@babel/runtime": "^7.28.3",
     "@genkit-ai/dotprompt": "^0.9.12",
-    "@genkit-ai/firebase": "^1.18.0",
+    "@genkit-ai/firebase": "^1.17.1",
     "@genkit-ai/google-cloud": "^1.18.0",
     "@genkit-ai/googleai": "^1.17.0",
     "@hookform/resolvers": "^3.9.0",

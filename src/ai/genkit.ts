@@ -1,9 +1,8 @@
-
 // src/ai/genkit.ts
 
 import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
-// FINAL CORRECTION: Use the correct NAMED import.
+// FINAL CORRECTION: Use the correct NAMED import for version 1.17.x
 import { firebase } from '@genkit-ai/firebase';
 import 'dotenv/config'; // Load environment variables
 
