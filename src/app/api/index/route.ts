@@ -4,7 +4,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as admin from 'firebase-admin';
 import { indexerFlow } from '@/ai/flows/knowledge';
-import { IndexerInputSchema } from '@/ai/flows/knowledge-schemas';
 import { z } from 'zod';
 
 // This initialization should be shared, but for safety, we ensure it runs.
@@ -36,30 +35,36 @@ export async function POST(req: NextRequest) {
     const { placeId } = validation.data;
     console.log(`[Index API] Received request to build knowledge base for placeId: ${placeId}`);
 
-    // 1. Query all documents in the 'capitals' sub-collection for the given placeId.
-    const capitalsSnapshot = await db.collection('places').doc(placeId).collection('capitals').get();
+    // Query documents from both 'documents' and all capital-specific subcollections.
+    // This provides a richer context for the knowledge base.
+    const documentCollectionRef = db.collection('places').doc(placeId).collection('documents');
+    const documentsSnapshot = await documentCollectionRef.where('status', '==', 'analyzed').get();
 
-    if (capitalsSnapshot.empty) {
-      console.log(`[Index API] No documents found in capitals collection for placeId: ${placeId}. Nothing to index.`);
-      return NextResponse.json({ message: 'No documents found to index.' });
-    }
-
-    // 2. Extract the 'summary' text from each document.
-    const textsToIndex = capitalsSnapshot.docs.map(doc => {
+    const textsToIndex: string[] = [];
+    documentsSnapshot.forEach(doc => {
       const data = doc.data();
-      // Ensure we only include documents that have a non-empty summary.
-      return data.summary && typeof data.summary === 'string' ? data.summary : null;
-    }).filter((text): text is string => text !== null); // Filter out any nulls
+      if (data.overallSummary) textsToIndex.push(data.overallSummary);
+
+      if (data.analysis) {
+        Object.values(data.analysis).forEach((capital: any) => {
+          if (capital.summary) textsToIndex.push(capital.summary);
+          if (capital.extractedText) textsToIndex.push(capital.extractedText);
+        });
+      }
+    });
 
     if (textsToIndex.length === 0) {
-        console.log(`[Index API] Documents were found, but none had a valid 'summary' field to index.`);
+        console.log(`[Index API] No text found to index for placeId: ${placeId}.`);
         return NextResponse.json({ message: 'No text content found to index.' });
     }
     
-    console.log(`[Index API] Found ${textsToIndex.length} text summaries to index. Calling indexerFlow...`);
+    console.log(`[Index API] Found ${textsToIndex.length} text chunks to index. Calling indexerFlow...`);
 
-    // 3. Call the indexerFlow with the collected texts.
-    const result = await indexerFlow({ texts: textsToIndex });
+    // Call the indexerFlow with the collected texts AND the placeId.
+    const result = await indexerFlow({
+      placeId: placeId, // Pass the required placeId
+      texts: textsToIndex,
+    });
 
     console.log(`[Index API] indexerFlow completed successfully.`, result);
     return NextResponse.json({
