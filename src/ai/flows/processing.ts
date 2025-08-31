@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview A unified Genkit flow to handle the entire document processing pipeline,
  * from metadata creation to AI analysis. This flow is designed to be triggered by
@@ -112,7 +111,11 @@ export const processUploadedDocument = ai.defineFlow(
 
       // Step 2: Perform Analysis
       console.log(`[processUploadedDocument] Starting analysis for doc: ${documentId}`);
-      const fileRef = storage.bucket().file(storagePath);
+      
+      // FIXED: Get bucket and file reference properly
+      const bucket = storage.bucket('rdd-applicationback.firebasestorage.app');
+      const fileRef = bucket.file(storagePath);
+      
       const [signedUrl] = await fileRef.getSignedUrl({
         action: 'read',
         expires: Date.now() + 15 * 60 * 1000,
