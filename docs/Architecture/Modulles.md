@@ -26,6 +26,24 @@ Our development process is a synergistic cycle between three core technologies:
 2.  **Customize in Google AI Studio:** We move to AI Studio to prototype, test, and fine-tune Gemini models for the specific tasks identified in the previous step. This creates specialized AI "experts."
 3.  **Integrate with the Gemini API:** The customized model endpoint is integrated into the application's backend code (usually within a Firebase Cloud Function or API Route), making its intelligence available to the app. This enhanced capability then allows for further prototyping, restarting the cycle.
 
+## Section 2.1: Infrastructure Prerequisites
+
+**CRITICAL: Firestore Vector Index**
+
+To enable the Retrieval-Augmented Generation (RAG) functionality (`ragQueryFlow`), a specific composite index MUST be created in Firestore. Without this index, queries that filter by `placeId` and perform a vector search on the `embedding` field will fail.
+
+**Error Symptom:**
+`FAILED_PRECONDITION: Missing vector index configuration.`
+
+**Solution:**
+Run the following `gcloud` command in your terminal, ensuring you are authenticated to the correct Google Cloud project.
+
+```bash
+gcloud firestore indexes composite create --project=rdd-applicationback --collection-group=knowledge --query-scope=COLLECTION --field-config=order=ASCENDING,field-path=placeId --field-config=vector-config='{"dimension":"768","flat": "{}"}',field-path=embedding
+```
+
+This command only needs to be run once for the project.
+
 ## Section 3: Core API Routes and Their AI Instructions
 
 This is the practical guide for connecting our "Recipe Book" (the Prompt Framework) to our "Kitchen Stations" (the API routes).

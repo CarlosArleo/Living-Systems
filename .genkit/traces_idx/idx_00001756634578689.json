@@ -1,2 +1,6 @@
 {"id":"fd7b9e92a36ee221b5e2d1d79d2b1117","type":"flow","start":1756634593363,"name":"generateMasterPrompt","end":1756634604552.1567,"status":0}
 {"id":"ffc76d5007c257d2b9e96c8391928c5f","type":"flow","start":1756634680041,"name":"ragQueryFlow","end":1756634681659.709,"status":2}
+{"id":"18b364787b93a67048daec57a868f736","type":"flow","start":1756634687565,"name":"critiqueCode","end":1756634700559.392,"status":0}
+{"id":"965f65ce49ebfa64603ecb7f6c4b808b","type":"flow","start":1756634704316,"name":"embedText","end":1756634704569.9663,"status":0}
+{"id":"a73513c16ff577ade921b243d3be30aa","type":"flow","start":1756634731750,"name":"generateCode","end":1756634732808.45,"status":0}
+{"id":"e3ad9f67c158ed21dd2d4dff2367f86c","type":"flow","start":1756634745565,"name":"ragQueryFlow","end":1756634746737.3096,"status":2}
