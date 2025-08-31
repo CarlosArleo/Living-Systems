@@ -5,17 +5,23 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { harmonizeDataOnUpload } from '@/ai/flows/harmonize';
+// CORRECTED: Import the new unified flow
+import { processUploadedDocument } from '@/ai/flows/processing'; 
 import { getAuth } from 'firebase-admin/auth';
 import * as admin from 'firebase-admin';
+import { projectConfig } from '@/ai/config';
 
 if (!admin.apps.length) {
     try {
-      admin.initializeApp();
+      admin.initializeApp({
+        projectId: projectConfig.projectId,
+        storageBucket: projectConfig.storageBucket,
+      });
     } catch (e) {
       console.error('CRITICAL: Firebase Admin SDK initialization failed in API route!', e);
     }
 }
+const db = admin.firestore();
 
 // This schema validates the incoming request from the client.
 const HarmonizeApiInputSchema = z.object({
@@ -45,12 +51,27 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // Call the flow with the validated data and the verified UID
-    const result = await harmonizeDataOnUpload({ 
+    // Create a new document ID on the server to pass to the flow
+    const docRef = db.collection('places').doc(validation.data.placeId).collection('documents').doc();
+    const documentId = docRef.id;
+
+    // IMPORTANT: Asynchronously trigger the full processing flow.
+    // We do NOT await the result here. This makes the API return instantly,
+    // and the heavy AI work happens in the background.
+    processUploadedDocument({ 
         ...validation.data,
         uploadedBy: uid,
-     });
-    return NextResponse.json(result);
+        documentId: documentId 
+     }).catch(flowError => {
+        // Log any errors from the background flow execution for debugging
+        console.error(`[Harmonize API] Background flow execution failed for docId ${documentId}:`, flowError);
+    });
+
+    // Return an immediate success response to the client.
+    return NextResponse.json({ 
+        message: 'Document processing initiated.',
+        documentId: documentId 
+    });
 
   } catch (error) {
     console.error('[Harmonize API] An unexpected error occurred:', error);

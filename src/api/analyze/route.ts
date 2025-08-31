@@ -5,15 +5,19 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { processUploadedDocument } from '@/ai/flows/processing'; // CORRECT: Use the new unified flow
+import { processUploadedDocument } from '@/ai/flows/processing'; 
 import { getAuth } from 'firebase-admin/auth';
 import * as admin from 'firebase-admin';
 import { getFirestore } from 'firebase-admin/firestore';
+import { projectConfig } from '@/ai/config';
 
 // --- Initialization ---
 if (!admin.apps.length) {
   try {
-    admin.initializeApp();
+    admin.initializeApp({
+      projectId: projectConfig.projectId,
+      storageBucket: projectConfig.storageBucket,
+    });
   } catch (e) {
     console.error('CRITICAL: Firebase Admin SDK initialization failed in Analyze API!', e);
   }

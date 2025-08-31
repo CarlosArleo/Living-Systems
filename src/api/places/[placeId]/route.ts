@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as admin from 'firebase-admin';
 import { getAuth } from 'firebase-admin/auth';
+import { projectConfig } from '@/ai/config';
 
 // --- Type Definition ---
 interface AnalyzedDocument {
@@ -19,7 +20,10 @@ interface AnalyzedDocument {
 // --- Robust Firebase Admin SDK Initialization ---
 if (!admin.apps.length) {
   try {
-    admin.initializeApp();
+    admin.initializeApp({
+        projectId: projectConfig.projectId,
+        storageBucket: projectConfig.storageBucket,
+    });
     console.log('Firebase Admin SDK initialized successfully for place summary route.');
   } catch (e) {
     console.error('CRITICAL: Firebase Admin SDK initialization failed!', e);
