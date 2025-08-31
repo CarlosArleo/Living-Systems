@@ -1,16 +1,9 @@
+/**
+ * @fileoverview The local development server entry point for Genkit.
+ * This file imports the configured 'ai' instance and starts the server.
+ */
+import './genkit'; // This MUST be the first import to register all flows.
+import { startFlowsServer } from 'genkit/flow';
 
-import dotenv from 'dotenv';
-dotenv.config();
-
-// This is the entry point for the Genkit developer UI.
-// It imports all flows to ensure they are registered with the framework.
-import './flows/simple';
-import './flows/harmonize'; // For client-side metadata creation
-import './flows/knowledge';
-import './flows/rag-flow';
-import './flows/story-flow';
-import './flows/embed';
-import './flows/generateCode';
-import './flows/critiqueCode';
-import './flows/meta-prompter';
-import './flows/integralAssessment'; // For background analysis
+// Start the Genkit server for local development.
+startFlowsServer();
