@@ -13,10 +13,13 @@ import { getStorage } from 'firebase-admin/storage';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
-// --- Initialization ---
+// --- Robust Firebase Admin SDK Initialization ---
 if (!admin.apps.length) {
   try {
-    admin.initializeApp();
+    // Explicitly configure storageBucket for robust initialization
+    admin.initializeApp({
+      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    });
   } catch (e) {
     console.error('Integral Assessment: Firebase Admin SDK initialization failed!', e);
   }
@@ -117,7 +120,7 @@ export const integralAssessmentFlow = ai.defineFlow(
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error during processing.';
       console.error(`[integralAssessmentFlow] Failed to process doc: ${documentId}. Error: ${errorMessage}`);
-      // Attempt to update the doc status to failed, even if it fails, we still throw
+      // Attempt to update the doc status to failed, but don't let this block the error response
       try {
         await docRef.update({ status: 'failed', error: errorMessage });
       } catch (updateError) {

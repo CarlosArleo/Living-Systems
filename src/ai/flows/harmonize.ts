@@ -16,7 +16,9 @@ import * as admin from 'firebase-admin';
 // --- Robust Firebase Admin SDK Initialization ---
 if (!admin.apps.length) {
   try {
-    admin.initializeApp();
+    admin.initializeApp({
+      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    });
   } catch (e) {
     console.error('CRITICAL: Firebase Admin SDK initialization failed!', e);
     throw new Error('Firebase Admin SDK could not be initialized.');
