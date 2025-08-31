@@ -7,8 +7,8 @@
 import { onObjectFinalized } from "firebase-functions/v2/storage";
 import * as logger from "firebase-functions/logger";
 import { initializeApp } from "firebase-admin/app";
-import { runWithHttp } from "@genkit-ai/firebase/functions";
-import { integralAssessmentFlow } from "./flows/integralAssessment"; // Corrected import
+import { run } from "@genkit-ai/firebase/functions"; // Correct import for background tasks
+import { integralAssessmentFlow } from "./flows/integralAssessment";
 
 // Initialize Firebase Admin SDK
 initializeApp();
@@ -18,7 +18,7 @@ initializeApp();
  * Cloud Function that triggers automatically when a new file is uploaded
  * to Cloud Storage. This function now invokes the 'integralAssessmentFlow'.
  */
-export const triggerDocumentAnalysis = onObjectFinalized( // Renamed for clarity
+export const triggerDocumentAnalysis = onObjectFinalized(
   {
     bucket: process.env.GCLOUD_PROJECT! + ".appspot.com",
     cpu: 2,
@@ -27,11 +27,11 @@ export const triggerDocumentAnalysis = onObjectFinalized( // Renamed for clarity
   async (event) => {
     const filePath = event.data.name;
     const metadata = event.data.metadata || {};
+    const uploadedBy = metadata.uploadedBy || 'unknown'; // Get uploadedBy from metadata
 
     logger.info(`[triggerDocumentAnalysis] New file detected: ${filePath}`);
 
     // This regex now expects: uploads/{userId}/{placeId}/{docId}_{fileName}
-    // This makes parsing more robust as docId is now part of the folder structure
     const pathRegex = /^uploads\/[^\/]+\/([^\/]+)\/([^\/]+)_.+$/;
     const matches = filePath.match(pathRegex);
 
@@ -54,8 +54,8 @@ export const triggerDocumentAnalysis = onObjectFinalized( // Renamed for clarity
     try {
       logger.log(`Invoking integralAssessmentFlow for place: ${placeId}, doc: ${documentId}`);
       
-      // Use the Genkit 'runWithHttp' utility for robust invocation.
-      await runWithHttp(integralAssessmentFlow, {
+      // Use the Genkit 'run' utility for robust invocation of background flows.
+      await run(integralAssessmentFlow, {
         placeId: placeId,
         documentId: documentId,
         storagePath: filePath,
