@@ -16,22 +16,26 @@ export default function LoginPage() {
   const { toast } = useToast();
 
   useEffect(() => {
+    const handleAuthRedirect = async () => {
+        try {
+            await getRedirectResult(auth);
+        } catch (error) {
+            console.error("Error getting redirect result:", error);
+            toast({
+                variant: "destructive",
+                title: "Sign-In Failed",
+                description: "Could not complete sign-in with Google. Please try again.",
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+    
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         router.push('/');
       } else {
-        // If no user, check for redirect result
-        getRedirectResult(auth).catch((error) => {
-          // Handle redirect errors if necessary
-          console.error("Error getting redirect result:", error);
-          toast({
-            variant: "destructive",
-            title: "Sign-In Failed",
-            description: "Could not complete sign-in with Google. Please try again.",
-          });
-        }).finally(() => {
-            setLoading(false);
-        });
+        handleAuthRedirect();
       }
     });
 
