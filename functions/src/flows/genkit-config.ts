@@ -5,16 +5,16 @@
  */
 import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
-// CORRECTED: Use the correct NAMED import for version 1.17.x
-import { firebase } from '@genkit-ai/firebase';
+// CORRECTED: Use a namespace import for version 1.17.x
+import * as firebase from '@genkit-ai/firebase';
 
 // This config will be used by the deployed Cloud Function environment.
 // It will automatically use the application's default credentials and environment.
 export const ai = genkit({
   plugins: [
     googleAI(),
-    // CORRECTED: Call the named import directly as a function.
-    firebase(),
+    // CORRECTED: Call the firebase() function from the imported namespace.
+    firebase.firebase(),
   ],
   model: googleAI.model('gemini-1.5-pro'),
 });
