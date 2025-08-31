@@ -75,6 +75,7 @@ export const integralAssessmentFlow = ai.defineFlow(
       const docData = docSnapshot.data()!;
       await docRef.update({ status: 'analyzing' });
 
+      // Use the default bucket associated with the initialized app
       const fileRef = storage.bucket().file(storagePath);
       const [signedUrl] = await fileRef.getSignedUrl({ action: 'read', expires: Date.now() + 15 * 60 * 1000 });
 
