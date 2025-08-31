@@ -7,6 +7,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import * as admin from 'firebase-admin';
 import { getAuth } from 'firebase-admin/auth';
 
+// --- Type Definition ---
+interface AnalyzedDocument {
+  id: string;
+  geoJSON?: string;
+  // Add other properties from your document data as needed for type safety
+  [key: string]: any;
+}
+
+
 // --- Robust Firebase Admin SDK Initialization ---
 if (!admin.apps.length) {
   try {
@@ -65,7 +74,7 @@ export async function GET(
     }
 
     // 3. Aggregate the data.
-    const analyzedDocs = analyzedDocsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const analyzedDocs: AnalyzedDocument[] = analyzedDocsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
     // Extract all GeoJSON strings into a single array for the map.
     const allGeoJSON = analyzedDocs
