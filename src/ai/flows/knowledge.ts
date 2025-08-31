@@ -60,7 +60,8 @@ export const indexerFlow = ai.defineFlow(
     console.log(`[indexerFlow] Generating embeddings for ${texts.length} new text chunks.`);
     const embeddingResponses = await ai.embed({
       embedder: googleAI.embedder('text-embedding-004'),
-      content: texts,
+      // CORRECTED: Map the string array to the required DocumentData structure.
+      content: texts.map(t => ({text: t})),
     });
 
     // 3. Write the new documents to Firestore.
@@ -72,7 +73,7 @@ export const indexerFlow = ai.defineFlow(
       const docData: z.infer<typeof KnowledgeSchema> = {
         placeId, // Tag with placeId
         text: texts[i],
-        embedding: response.embedding,
+        embedding: response,
       };
       writeBatch.set(docRef, docData);
       totalChars += texts[i].length;

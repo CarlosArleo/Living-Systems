@@ -55,7 +55,8 @@ export type RagQueryOutput = z.infer<typeof RagQueryOutputSchema>;
  * This is the modern, correct API usage for Genkit v1.18.0.
  * Filtering by placeId is handled dynamically in the RAG flow itself.
  */
-export const knowledgeRetriever = defineFirestoreRetriever({
+// CORRECTED: Pass the `ai` instance as the first argument.
+export const knowledgeRetriever = defineFirestoreRetriever(ai, {
   name: `knowledgeRetriever`,
   label: 'RDI Knowledge Base',
   firestore: db,
