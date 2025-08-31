@@ -5,14 +5,16 @@
  */
 import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
-import firebase from '@genkit-ai/firebase'; // CORRECTED: Default import
+// CORRECTED: Use the correct NAMED import.
+import { firebase } from '@genkit-ai/firebase';
 
 // This config will be used by the deployed Cloud Function environment.
 // It will automatically use the application's default credentials and environment.
 export const ai = genkit({
   plugins: [
     googleAI(),
-    firebase(), // CORRECTED: Call the default export directly as a function
+    // CORRECTED: Call the named import directly as a function.
+    firebase(), 
   ],
   model: googleAI.model('gemini-1.5-pro'),
 });
