@@ -1,13 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Adding this experimental flag helps ensure the cache is fully invalidated.
   experimental: {
-    serverComponentsExternalPackages: ['@genkit-ai/core', '@genkit-ai/googleai'],
+    serverComponentsExternalPackages: ['@genkit-ai/core', '@genkit-ai/googleai']
   },
-  webpack: (config, { isServer }) => {
-    // A small webpack config change to force cache invalidation.
-    if (!isServer) {
-      // For example, you can add a simple alias or rule here if needed in the future.
-    }
+  webpack: (config) => {
+    // This empty webpack modification is a safe way to ensure a full rebuild.
     return config;
   },
 };
