@@ -55,7 +55,7 @@ async function runDevelopmentCycle(taskDescription: string, outputFilePath: stri
     });
     
     // Parse the structured Markdown report to extract the verdict and issues.
-    const verdictMatch = rawCritiqueReport.match(/\*\*Verdict:\*\*\s*(PASS|FAIL)/i);
+    const verdictMatch = rawCritiqueReport.match(/\\*\\*Verdict:\\*\\*\\s*(PASS|FAIL)/i);
     verdict = (verdictMatch ? verdictMatch[1].toUpperCase() : 'FAIL') as 'PASS' | 'FAIL';
     auditReport = rawCritiqueReport;
     

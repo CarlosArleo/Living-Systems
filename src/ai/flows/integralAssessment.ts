@@ -6,11 +6,12 @@
 
 'use server';
 
-import { ai, googleAI } from '../genkit';
+import { ai } from '../genkit';
+import { googleAI } from '@genkit-ai/googleai';
 import { z } from 'zod';
 import { firebase } from '@genkit-ai/firebase';
-import { dotprompt } from '@genkit-ai/dotprompt';
-import { defineDotprompt } from '@genkit-ai/dotprompt';
+import { dotprompt, defineDotprompt } from '@genkit-ai/dotprompt';
+
 
 // Register the prompt so Genkit knows about it.
 defineDotprompt({

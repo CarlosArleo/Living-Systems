@@ -5,10 +5,10 @@
  */
 'use server';
 
+import { ai } from './genkit'; 
+import { googleAI } from '@genkit-ai/googleai'; 
 import { promises as fs } from 'fs';
 import path from 'path';
-import { ai } from './genkit'; // Corrected: Import the central 'ai' instance
-import { googleAI } from '@genkit-ai/googleai'; // Corrected: Import googleAI for embedder
 
 type KnowledgeChunk = {
   text: string;
@@ -77,7 +77,8 @@ export async function retrieveRelevantContext(
       embedder: googleAI.embedder('text-embedding-004'),
       content: taskDescription,
   });
-
+  
+  // Correctly access the embedding from the response array
   const queryEmbedding = embeddingResponse[0].embedding;
 
   if (!queryEmbedding) {
