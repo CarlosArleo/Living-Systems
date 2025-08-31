@@ -3,3 +3,4 @@
 {"id":"51318720e122afd12559732aad483ad2","type":"flow","start":1756658606671,"name":"ragQueryFlow","end":1756658608115.157,"status":0}
 {"id":"adb41b9659736ef318c0e5d8544c662b","type":"flow","start":1756658622111,"name":"indexerFlow","end":1756658624004.4045,"status":0}
 {"id":"015614843a4ce9d3aa77fb22d47f5688","type":"flow","start":1756658635001,"name":"generateStoryOfPlaceFlow","end":1756658635187.5427,"status":2}
+{"id":"c1f67e5174b9214db1e24809025d018e","type":"flow","start":1756659846031,"name":"embedText","end":1756659846341.3025,"status":0}
