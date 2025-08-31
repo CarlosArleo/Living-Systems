@@ -16,12 +16,38 @@ interface FlowManifest {
   isWired: boolean;
 }
 
+// --- Pre-flight Check ---
+
+/**
+ * Validates that the environment configuration is present and correct.
+ * Exits the script if validation fails.
+ */
+async function runPreFlightChecks() {
+    console.log('--- PRE-FLIGHT CHECKS ---');
+    try {
+        // This dynamic import will throw an error if config.ts fails,
+        // which is what we want.
+        const { projectConfig } = await import('../src/ai/config');
+        if (projectConfig.projectId && projectConfig.storageBucket) {
+             console.log('[✓] Environment Configuration: OK');
+        } else {
+            // This case should theoretically not be hit if config.ts is working.
+            throw new Error('projectConfig was loaded but is missing required properties.');
+        }
+    } catch(e: any) {
+        console.error(`[✗] FATAL ERROR: Environment Configuration is invalid. Please check your .env file. Reason: ${e.message}`);
+        process.exit(1); // Exit immediately
+    }
+}
+
+
 // --- Main Functions ---
 
 /**
  * Parses the FLOW_SYSTEM_CONSTITUTION.md file to extract the flow manifest.
  */
 async function parseConstitution(): Promise<Map<string, { filePath: string }>> {
+  console.log('\n--- FLOW AUDIT ---');
   console.log('Parsing Flow System Constitution...');
   const constitutionPath = path.join(process.cwd(), 'docs', 'FLOW_SYSTEM_CONSTITUTION.md');
   const content = await fs.readFile(constitutionPath, 'utf-8');
@@ -72,6 +98,8 @@ async function checkWiring(filePath: string): Promise<boolean> {
 async function runDiagnostics() {
   console.log('--- RDI System Diagnostic Agent ---');
   
+  await runPreFlightChecks();
+
   const constitutionFlows = await parseConstitution();
   const report: FlowManifest[] = [];
 
