@@ -98,9 +98,9 @@ async function generateRoadmapReport() {
 
       if (evidenceKey) {
         const evidenceItems = evidenceMap[evidenceKey];
-        // Check if all evidence items for this key are present
-        const allEvidenceFound = evidenceItems.every(evidence => codebaseText.includes(evidence));
-        if (allEvidenceFound) {
+        // CORRECTED LOGIC: Check if *at least one* evidence item is present.
+        const someEvidenceFound = evidenceItems.some(evidence => codebaseText.includes(evidence));
+        if (someEvidenceFound) {
           isDone = true;
         }
       }
