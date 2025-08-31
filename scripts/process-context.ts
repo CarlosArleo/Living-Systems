@@ -2,10 +2,10 @@
  * @fileOverview A script to process the CONTEXT.md file and create a
  *               JSON-based vector store for the RAG system.
  */
-'use server';
 
-// CORRECT: Import the configured ai object and googleAI for the embedder
+import 'dotenv/config';
 import { ai, googleAI } from '../src/ai/genkit';
+import { embed } from '@genkit-ai/ai';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -17,15 +17,14 @@ async function processContextFile() {
 
   try {
     const contextFilePath = path.join(process.cwd(), 'CONTEXT.md');
-    // CORRECT: The output file path is now correctly pointing to the root.
     const outputFilePath = path.join(process.cwd(), 'rag-memory.json');
 
     console.log(`[Context Processor] Reading CONTEXT.md from: ${contextFilePath}`);
     const contextContent = await fs.readFile(contextFilePath, 'utf-8');
 
     console.log('[Context Processor] Chunking document by Markdown headers...');
-    // This regex splits the text by ## or ### headers, keeping the header with the content.
-    const chunks = contextContent.split(/(?=^##\s|?=^###\s)/m).filter(chunk => chunk.trim() !== '');
+    // FIXED: Corrected regex pattern
+    const chunks = contextContent.split(/(?=^##\s|(?=^###\s))/m).filter(chunk => chunk.trim() !== '');
     console.log(`[Context Processor] Found ${chunks.length} chunks to process.`);
 
     const knowledgeBase = [];
@@ -34,7 +33,7 @@ async function processContextFile() {
 
       console.log(`[Context Processor] Embedding chunk starting with: "${chunk.substring(0, 50).replace(/\n/g, ' ')}..."`);
       
-      // CORRECT: The call now uses the configured `ai` object.
+      // CORRECT: Use the embed function with the configured embedder
       const embeddingResponse = await ai.embed({
         embedder: googleAI.embedder('text-embedding-004'),
         content: chunk,
@@ -42,7 +41,8 @@ async function processContextFile() {
 
       knowledgeBase.push({
         text: chunk,
-        embedding: embeddingResponse.embedding,
+        // FIXED: embeddingResponse is an array, take the first element
+        embedding: embeddingResponse[0].embedding,
       });
     }
 

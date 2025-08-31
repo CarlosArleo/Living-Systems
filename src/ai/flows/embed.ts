@@ -18,6 +18,6 @@ export const embedText = ai.defineFlow(
       content: text,
     });
 
-    return embeddingResponse.embedding;
+    return embeddingResponse[0].embedding;
   }
 );

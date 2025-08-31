@@ -13,3 +13,4 @@ credentials/
 
 # Environment variables
 .env*
+.env
