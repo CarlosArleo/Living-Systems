@@ -30,7 +30,7 @@ async function loadKnowledgeBase(): Promise<KnowledgeChunk[]> {
     knowledgeBase = JSON.parse(fileContent);
     return knowledgeBase!;
   } catch (error) {
-    console.error('Failed to load or parse knowledge-base.json:', error);
+    console.error('Failed to load or parse rag-memory.json:', error);
     // Return an empty array on error to prevent crashes
     return [];
   }
