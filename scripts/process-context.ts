@@ -39,7 +39,7 @@ async function processContextFile() {
       knowledgeBase.push({
         text: chunk,
         // CORRECTED: When embedding a single chunk, the embedding is directly on the response.
-        embedding: embeddingResponse.embedding,
+        embedding: embeddingResponse [0].embedding,
       });
     }
 
