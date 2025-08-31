@@ -296,7 +296,7 @@ export function AnalysisPanel({ onPlaceChange, selectedPlace, visibleLayers, onL
                   </g>
                 </svg>
                 <div className="flex flex-col">
-                  <CardTitle className="font-headline text-xs font-semibold tracking-wider text-foreground/90">RDD PLATFORM</CardTitle>
+                  <CardTitle className="font-headline text-xs font-semibold tracking-wider text-foreground/90">RDI PLATFORM</CardTitle>
                 </div>
               </div>
               <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)} className="h-6 w-6 rounded-none">
