@@ -26,31 +26,27 @@ export const triggerDocumentAnalysisOnUpload = onObjectFinalized(
     cpu: "gcf_gen1", // Specify a valid CPU allocation
   },
   async (event) => {
-    const fileBucket = event.data.bucket;
     const filePath = event.data.name;
-    const contentType = event.data.contentType;
 
-    logger.info(`[triggerDocumentAnalysis] Event received for file: ${filePath}`, {
-      contentType,
-      bucket: fileBucket,
-    });
+    logger.info(`[triggerDocumentAnalysis] Event received for file: ${filePath}`);
 
-    // 3. Idempotency Check: Exit if this is a metadata-only update.
+    // 1. Idempotency Check: Exit if this is a metadata-only update.
     if (event.data.metageneration !== "1") {
       logger.log(`[triggerDocumentAnalysis] Ignoring metadata update for ${filePath}.`);
       return;
     }
 
-    // 2. Path Validation: Ensure the file is in a valid `places` directory.
+    // 2. Path Validation: Ensure the file is in a valid `uploads` directory.
     // Example path: uploads/{userId}/{placeId}/{docId}_{fileName}
     const pathRegex = /^uploads\/([^/]+)\/([^/]+)\/([^/]+)_(.*)$/;
     const match = filePath.match(pathRegex);
 
     if (!match) {
-      logger.log(`[triggerDocumentAnalysis] File path ${filePath} does not match the required pattern. Skipping.`);
+      logger.log(`[triggerDocumentAnalysis] File path ${filePath} does not match the required 'uploads/{userId}/{placeId}/{docId}_{fileName}' pattern. Skipping.`);
       return;
     }
     
+    // The regex captures these parts from the path
     const [, userId, placeId, docId, fileName] = match;
 
     // 7. Simplicity and Separation of Concerns: This function only triggers the flow.
@@ -64,7 +60,6 @@ export const triggerDocumentAnalysisOnUpload = onObjectFinalized(
       const analysisEndpoint = `${nextJsAppUrl}/api/analyze`;
       
       // 5. Authentication: Generate an OIDC token to authenticate this function to the API route.
-      // The google-auth-library is part of the default Cloud Functions environment.
       const { GoogleAuth } = require("google-auth-library");
       const auth = new GoogleAuth();
       const client = await auth.getIdTokenClient(analysisEndpoint);
@@ -73,6 +68,10 @@ export const triggerDocumentAnalysisOnUpload = onObjectFinalized(
       const requestBody = {
         placeId,
         docId,
+        // Although not strictly needed by the API, passing for completeness
+        storagePath: filePath,
+        fileName,
+        uploadedBy: userId,
       };
 
       logger.info(`[triggerDocumentAnalysis] Invoking analysis endpoint at ${analysisEndpoint} for doc ${docId}`);
@@ -97,6 +96,7 @@ export const triggerDocumentAnalysisOnUpload = onObjectFinalized(
       await docRef.set({
         status: 'failed',
         error: error instanceof Error ? error.message : 'Unknown error during trigger.',
+        analysisTriggerError: true, // Add a specific flag for debugging
       }, { merge: true });
       
       // Re-throw the error to ensure the function is marked as failed for monitoring.
