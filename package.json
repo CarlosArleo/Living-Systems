@@ -5,8 +5,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "genkit:dev": "rm -rf .genkit/ && tsx --env-file=.env src/ai/dev.ts",
-    "genkit:watch": "rm -rf .genkit/ && tsx --watch --env-file=.env src/ai/dev.ts",
+    "genkit:dev": "genkit start",
+    "genkit:watch": "genkit start --watch",
     "build:context": "tsx --env-file=.env scripts/process-context.ts",
     "build": "next build",
     "start": "next start",
