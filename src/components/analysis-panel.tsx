@@ -8,6 +8,7 @@ import {
   Plus,
   Database,
   BrainCircuit,
+  User as UserIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,6 +40,7 @@ import { Separator } from './ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { HolisticInquirySheet } from './holistic-inquiry-sheet';
 import { PlaceDetailView } from './place-detail-view';
+import { UserProfile } from './user-profile';
 
 type Place = {
   id: string;
@@ -328,6 +330,25 @@ export function AnalysisPanel({ onPlaceChange, selectedPlace }: AnalysisPanelPro
               {renderPanelContent()}
             </TabsContent>
           </Tabs>
+           <div className="flex-shrink-0 border-t border-border/20 p-2">
+             <Dialog>
+                <DialogTrigger asChild>
+                    <Button variant="ghost" className="w-full justify-start text-muted-foreground rounded-none">
+                        <UserIcon className="mr-2 h-4 w-4" />
+                        User Profile
+                    </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px] bg-card rounded-none">
+                    <DialogHeader>
+                    <DialogTitle>User Profile</DialogTitle>
+                    <DialogDescription>
+                        View your user information and sign out.
+                    </DialogDescription>
+                    </DialogHeader>
+                    {user && <UserProfile user={user} />}
+                </DialogContent>
+            </Dialog>
+           </div>
         </Card>
       </div>
       <DocumentDetailSheet document={selectedDoc} isOpen={!!selectedDoc} onOpenChange={(open) => !open && setSelectedDoc(null)} />
