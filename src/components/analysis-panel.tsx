@@ -1,19 +1,16 @@
+
 'use client';
 
 import * as React from 'react';
 import {
   ChevronLeft,
   LoaderCircle,
-  Trash2,
   Plus,
-  Eye,
-  EyeOff,
-  Sparkles,
   Database,
   BrainCircuit,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Tooltip,
   TooltipProvider,
@@ -29,17 +26,6 @@ import {
   DialogFooter,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, type DocumentData } from 'firebase/firestore';
@@ -52,35 +38,24 @@ import { cn } from '@/lib/utils';
 import { Separator } from './ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { HolisticInquirySheet } from './holistic-inquiry-sheet';
-
+import { PlaceDetailView } from './place-detail-view';
 
 type Place = {
   id: string;
   name: string;
 };
 
-// Represents a document in the 'documents' subcollection
 type DocumentMetadata = DocumentData & {
   id: string;
   placeId: string;
 };
 
-type VisibleLayers = {
-  Natural: boolean;
-  Human: boolean;
-  Social: boolean;
-  Manufactured: boolean;
-  Financial: boolean;
-};
-
 type AnalysisPanelProps = {
   onPlaceChange: (place: Place | null) => void;
   selectedPlace: DocumentData | null;
-  visibleLayers: VisibleLayers;
-  onLayerVisibilityChange: (layers: VisibleLayers) => void;
 };
 
-export function AnalysisPanel({ onPlaceChange, selectedPlace, visibleLayers, onLayerVisibilityChange }: AnalysisPanelProps) {
+export function AnalysisPanel({ onPlaceChange, selectedPlace }: AnalysisPanelProps) {
   const [isOpen, setIsOpen] = React.useState(true);
   
   const [places, setPlaces] = React.useState<Place[]>([]);
@@ -88,10 +63,7 @@ export function AnalysisPanel({ onPlaceChange, selectedPlace, visibleLayers, onL
   const [isCreatingPlace, setIsCreatingPlace] = React.useState(false);
   const [isCreatePlaceDialogOpen, setCreatePlaceDialogOpen] = React.useState(false);
 
-  // CORRECTED: This state now holds metadata from the 'documents' collection
-  const [sourceDocs, setSourceDocs] = React.useState<DocumentMetadata[]>([]);
   const [selectedDoc, setSelectedDoc] = React.useState<DocumentMetadata | null>(null);
-  const [isDeleting, setIsDeleting] = React.useState(false);
   const [user, setUser] = React.useState<User | null>(null);
   
   const [file, setFile] = React.useState<File | null>(null);
@@ -100,6 +72,11 @@ export function AnalysisPanel({ onPlaceChange, selectedPlace, visibleLayers, onL
   const [isHolisticInquiryOpen, setHolisticInquiryOpen] = React.useState(false);
   const [isIndexing, setIsIndexing] = React.useState(false);
   
+  // State for the new detail view
+  const [detailedPlaceData, setDetailedPlaceData] = React.useState<any>(null);
+  const [isDetailLoading, setIsDetailLoading] = React.useState(false);
+  const [detailError, setDetailError] = React.useState<string | null>(null);
+
   const { toast } = useToast();
 
   React.useEffect(() => {
@@ -129,64 +106,59 @@ export function AnalysisPanel({ onPlaceChange, selectedPlace, visibleLayers, onL
     return () => unsubscribe();
   }, [user, toast]);
 
+  // Effect to fetch detailed data when a place is selected
   React.useEffect(() => {
-    if (!selectedPlace?.id) {
-      setSourceDocs([]);
-      return;
+    if (selectedPlace?.id && user) {
+        const fetchDetails = async () => {
+            setIsDetailLoading(true);
+            setDetailError(null);
+            try {
+                const token = await user.getIdToken();
+                const response = await fetch(`/api/places/${selectedPlace.id}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.details || 'Failed to fetch place details.');
+                }
+                const data = await response.json();
+                setDetailedPlaceData(data);
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+                console.error("Error fetching place details:", error);
+                setDetailError(errorMessage);
+                toast({ variant: 'destructive', title: 'Error', description: errorMessage });
+            } finally {
+                setIsDetailLoading(false);
+            }
+        };
+        fetchDetails();
+    } else {
+        setDetailedPlaceData(null); // Clear data if no place is selected
     }
-    const db = getFirestore(app);
-    // CORRECTED: Listen to the 'documents' subcollection
-    const docsQuery = query(
-      collection(db, 'places', selectedPlace.id, 'documents'),
-      orderBy('uploadedAt', 'desc')
-    );
-
-    const unsubscribe = onSnapshot(docsQuery, (snapshot) => {
-      const docsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        placeId: selectedPlace.id,
-        ...doc.data(),
-      }));
-      setSourceDocs(docsData);
-    }, (error) => {
-      console.error("Error fetching source documents:", error);
-      toast({ variant: 'destructive', title: 'Error Fetching Documents', description: error.message });
-      setSourceDocs([]);
-    });
-
-    return () => unsubscribe();
-  }, [selectedPlace, toast]);
-
+  }, [selectedPlace, user, toast]);
 
   const handleCreatePlace = async () => {
-    if (!user) {
-        toast({ variant: "destructive", title: "Not Authenticated" });
-        return;
+    if (!user || !newPlaceName.trim()) {
+      toast({ variant: "destructive", title: "Validation Error", description: "Place name cannot be empty." });
+      return;
     }
-    if (!newPlaceName.trim()) {
-        toast({ variant: "destructive", title: "Validation Error" });
-        return;
-    }
-
     setIsCreatingPlace(true);
     try {
-        await user.getIdToken(true);
-        const db = getFirestore(app);
-        const docRef = await addDoc(collection(db, 'places'), {
-            name: newPlaceName,
-            createdBy: user.uid,
-            createdAt: serverTimestamp(),
-        });
-        toast({ title: "Place Created", description: `Successfully created "${newPlaceName}".` });
-        setNewPlaceName('');
-        handlePlaceChange(docRef.id);
-        setCreatePlaceDialogOpen(false);
+      const db = getFirestore(app);
+      await addDoc(collection(db, 'places'), {
+        name: newPlaceName,
+        createdBy: user.uid,
+        createdAt: serverTimestamp(),
+      });
+      toast({ title: "Place Created", description: `Successfully created "${newPlaceName}".` });
+      setNewPlaceName('');
+      setCreatePlaceDialogOpen(false);
     } catch (error) {
-        console.error("Error creating place:", error);
-        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
-        toast({ variant: "destructive", title: "Error Creating Place", description: errorMessage });
+      console.error("Error creating place:", error);
+      toast({ variant: "destructive", title: "Error Creating Place", description: error instanceof Error ? error.message : "An unknown error occurred." });
     } finally {
-        setIsCreatingPlace(false);
+      setIsCreatingPlace(false);
     }
   };
 
@@ -213,11 +185,7 @@ export function AnalysisPanel({ onPlaceChange, selectedPlace, visibleLayers, onL
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      setFile(event.target.files[0]);
-    } else {
-      setFile(null);
-    }
+    setFile(event.target.files ? event.target.files[0] : null);
   };
 
   const handleUpload = async (capitalCategory: string) => {
@@ -234,13 +202,13 @@ export function AnalysisPanel({ onPlaceChange, selectedPlace, visibleLayers, onL
       const storageRef = ref(storage, storagePath);
       await uploadBytes(storageRef, file);
 
-      // Now call the API that triggers the new, simpler harmonize flow
+      const token = await user.getIdToken();
       const response = await fetch('/api/harmonize', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
           placeId: selectedPlace.id,
-          capitalCategory,
+          initialCapitalCategory: capitalCategory,
           storagePath: storagePath,
           sourceFile: file.name,
         }),
@@ -249,7 +217,7 @@ export function AnalysisPanel({ onPlaceChange, selectedPlace, visibleLayers, onL
       const result = await response.json();
       if (!response.ok) throw new Error(result.details || result.error);
       
-      toast({ title: 'Upload Successful', description: `'${file.name}' is saved and ready for analysis.` });
+      toast({ title: 'Upload Successful', description: `'${file.name}' is now queued for analysis.` });
       setFile(null);
       setAddDataOpen(false);
 
@@ -259,12 +227,7 @@ export function AnalysisPanel({ onPlaceChange, selectedPlace, visibleLayers, onL
       setIsUploading(false);
     }
   };
-
-  const handlePlaceChange = (id: string) => {
-    const place = places.find(p => p.id === id) || null;
-    onPlaceChange(place);
-  }
-
+  
   if (!isOpen) {
     return (
       <div className="absolute left-3 top-3 z-10">
@@ -282,6 +245,62 @@ export function AnalysisPanel({ onPlaceChange, selectedPlace, visibleLayers, onL
     );
   }
   
+  const renderPanelContent = () => {
+    if (selectedPlace) {
+        if (isDetailLoading) {
+            return <div className="flex h-full items-center justify-center"><LoaderCircle className="animate-spin" /></div>;
+        }
+        if (detailError) {
+            return <div className="p-4 text-center text-sm text-destructive">{detailError}</div>;
+        }
+        if (detailedPlaceData) {
+            return <PlaceDetailView placeData={detailedPlaceData} onBack={() => onPlaceChange(null)} />;
+        }
+    }
+    // Default view: list of places
+    return (
+         <TabsContent value="analysis" className="flex-1 flex flex-col min-h-0 m-0">
+            <div className="p-3 space-y-2 mt-2">
+              <div className="flex items-center justify-between">
+                <h3 className="uppercase text-xs text-muted-foreground tracking-wider font-semibold">Places</h3>
+                <Dialog open={isCreatePlaceDialogOpen} onOpenChange={setCreatePlaceDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-7 px-2 font-body text-xs rounded-none">
+                      <Plus className="mr-1 h-3 w-3" /> Add Place
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="rounded-none">
+                    <DialogHeader>
+                      <DialogTitle>Create New Place</DialogTitle>
+                      <DialogDescription>Define a new geographic area for analysis.</DialogDescription>
+                    </DialogHeader>
+                    <Input value={newPlaceName} onChange={(e) => setNewPlaceName(e.target.value)} placeholder="e.g., Willow Creek Watershed" className="rounded-none" />
+                    <DialogFooter>
+                      <Button onClick={handleCreatePlace} disabled={isCreatingPlace} className="rounded-none">
+                        {isCreatingPlace && <LoaderCircle className="animate-spin mr-2 h-4 w-4" />}
+                        Create Place
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+               {places.map(p => (
+                <div key={p.id} onClick={() => onPlaceChange(p)}
+                  className={cn( "flex w-full items-center gap-2 p-2 text-left font-body text-xs text-muted-foreground hover:bg-accent/50 hover:text-foreground cursor-pointer border border-transparent rounded-none",
+                    selectedPlace?.id === p.id && "bg-accent/80 text-foreground border-border" )}>
+                  <div className="w-1.5 h-1.5 bg-purple-400 shrink-0 rounded-none"></div>
+                  <div className='flex-col min-w-0'> <span className="truncate flex-1 font-semibold">{p.name}</span></div>
+                </div>
+              ))}
+            </div>
+            <Separator className="bg-border/20" />
+            <div className="flex-1 flex flex-col min-h-0 p-3 space-y-3">
+                <p className="text-center text-muted-foreground text-xs p-4">Select a place to see details.</p>
+            </div>
+        </TabsContent>
+    )
+  }
+
   return (
     <>
       <div className="pointer-events-none absolute left-0 top-0 z-10 flex h-full p-2">
@@ -304,120 +323,7 @@ export function AnalysisPanel({ onPlaceChange, selectedPlace, visibleLayers, onL
               </Button>
             </div>
           </div>
-          <Tabs defaultValue="analysis" className="flex-1 flex flex-col min-h-0">
-             <div className="p-3 border-b border-border/20">
-                <TabsList className="grid w-full grid-cols-2 h-8 rounded-none">
-                    <TabsTrigger value="analysis" className="text-xs rounded-none">Analysis</TabsTrigger>
-                    <TabsTrigger value="inquiry" className="text-xs rounded-none">Inquiry</TabsTrigger>
-                </TabsList>
-             </div>
-             <TabsContent value="analysis" className="flex-1 flex flex-col min-h-0 m-0">
-                <div className="p-3 space-y-2 mt-2">
-                  <div className="flex items-center justify-between">
-                    <h3 className="uppercase text-xs text-muted-foreground tracking-wider font-semibold">Places</h3>
-                    <Dialog open={isCreatePlaceDialogOpen} onOpenChange={setCreatePlaceDialogOpen}>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" size="sm" className="h-7 px-2 font-body text-xs rounded-none">
-                          <Plus className="mr-1 h-3 w-3" /> Add Place
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="rounded-none">
-                        <DialogHeader>
-                          <DialogTitle>Create New Place</DialogTitle>
-                          <DialogDescription>Define a new geographic area for analysis.</DialogDescription>
-                        </DialogHeader>
-                        <Input value={newPlaceName} onChange={(e) => setNewPlaceName(e.target.value)} placeholder="e.g., Willow Creek Watershed" className="rounded-none" />
-                        <DialogFooter>
-                          <Button onClick={handleCreatePlace} disabled={isCreatingPlace} className="rounded-none">
-                            {isCreatingPlace && <LoaderCircle className="animate-spin mr-2 h-4 w-4" />}
-                            Create Place
-                          </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-                   {places.map(p => (
-                    <div key={p.id} onClick={() => handlePlaceChange(p.id)}
-                      className={cn( "flex w-full items-center gap-2 p-2 text-left font-body text-xs text-muted-foreground hover:bg-accent/50 hover:text-foreground cursor-pointer border border-transparent rounded-none",
-                        selectedPlace?.id === p.id && "bg-accent/80 text-foreground border-border" )}>
-                      <div className="w-1.5 h-1.5 bg-purple-400 shrink-0 rounded-none"></div>
-                      <div className='flex-col min-w-0'> <span className="truncate flex-1 font-semibold">{p.name}</span></div>
-                    </div>
-                  ))}
-                </div>
-                <Separator className="bg-border/20" />
-                <div className="flex-1 flex flex-col min-h-0 p-3 space-y-3">
-                    <div className='flex items-center justify-between'>
-                      <h3 className="uppercase text-xs text-muted-foreground tracking-wider font-semibold">Source Documents</h3>
-                       <Dialog open={isAddDataOpen} onOpenChange={setAddDataOpen}>
-                            <DialogTrigger asChild>
-                               <Button variant="outline" size="sm" className="h-7 px-2 font-body text-xs rounded-none" disabled={!selectedPlace}> Add Data</Button>
-                            </DialogTrigger>
-                            <DialogContent className="rounded-none">
-                              <DialogHeader> <DialogTitle>Add New Data</DialogTitle> <DialogDescription>Upload a document for {selectedPlace?.name}. The AI will analyze it.</DialogDescription></DialogHeader>
-                              <Input id="data-file" type="file" onChange={handleFileChange} accept=".pdf,.txt,.md,.json" className="rounded-none"/>
-                              <DialogFooter>
-                                <Button onClick={() => handleUpload('Natural')} disabled={isUploading || !file} className="rounded-none">
-                                  {isUploading && <LoaderCircle className="animate-spin mr-2 h-4 w-4" />}
-                                  Upload
-                                </Button>
-                              </DialogFooter>
-                            </DialogContent>
-                          </Dialog>
-                    </div>
-                    <ScrollArea className="flex-1 -mr-3 pr-3">
-                      <div className="space-y-1.5">
-                        {sourceDocs.length > 0 ? (
-                          sourceDocs.map(doc => (
-                            <div key={doc.id} className="group relative w-full border border-border/50 bg-background/30 hover:border-border cursor-pointer rounded-none">
-                              <div onClick={() => setSelectedDoc(doc)} className="flex items-stretch gap-2 p-2 text-left min-w-0">
-                                <div className="w-1 self-stretch bg-green-500 rounded-none"></div>
-                                <div className="flex-1 flex flex-col min-w-0">
-                                    <span className="font-body truncate text-xs text-foreground font-medium">
-                                      {doc.sourceFile || 'Untitled Document'}
-                                    </span>
-                                    <span className="text-[10px] text-muted-foreground/80 capitalize">
-                                      Status: {doc.status || 'Unknown'}
-                                    </span>
-                                </div>
-                                {doc.status === 'uploaded' && (
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <button onClick={(e) => {e.stopPropagation(); setSelectedDoc(doc);}} className="absolute right-1 top-1/2 -translate-y-1/2 p-1 text-muted-foreground opacity-100 hover:bg-accent/20 hover:text-foreground rounded-none">
-                                          <Sparkles className="h-3.5 w-3.5"/>
-                                        </button>
-                                      </TooltipTrigger>
-                                      <TooltipContent side="top"><p>Run Analysis</p></TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                )}
-                              </div>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="text-center text-xs text-muted-foreground py-6 font-body"><p>No documents for this place.</p></div>
-                        )}
-                      </div>
-                    </ScrollArea>
-                </div>
-            </TabsContent>
-            <TabsContent value="inquiry" className="flex-1 flex flex-col min-h-0 m-0">
-                <div className="flex-1 flex flex-col items-center justify-center p-4 text-center space-y-4">
-                     <p className="text-sm text-muted-foreground">Ask questions about {selectedPlace?.name || 'your place'}.</p>
-                     <Button variant="outline" onClick={() => setHolisticInquiryOpen(true)} disabled={!selectedPlace} className="rounded-none w-full">
-                        <BrainCircuit className="mr-2" /> Holistic Inquiry
-                    </Button>
-                    <Button variant="secondary" onClick={handleBuildKnowledgeBase} disabled={!selectedPlace || isIndexing} className="rounded-none w-full">
-                        {isIndexing ? <LoaderCircle className="animate-spin mr-2" /> : <Database className="mr-2" />}
-                        {isIndexing ? 'Indexing...' : 'Build Knowledge Base'}
-                    </Button>
-                     <p className="text-xs text-muted-foreground/80 pt-2">
-                        First, build the knowledge base from your uploaded documents. Then, start an inquiry.
-                    </p>
-                </div>
-            </TabsContent>
-          </Tabs>
+          {renderPanelContent()}
         </Card>
       </div>
       <DocumentDetailSheet document={selectedDoc} isOpen={!!selectedDoc} onOpenChange={(open) => !open && setSelectedDoc(null)} />
