@@ -14,11 +14,15 @@ import { getStorage } from 'firebase-admin/storage';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { getFirestore } from 'firebase-admin/firestore';
+import { projectConfig } from '../config'; // Import the validated config
 
 // --- Initialization ---
 if (!admin.apps.length) {
   try {
-    admin.initializeApp();
+    // Use the validated config for initialization
+    admin.initializeApp({
+        storageBucket: projectConfig.storageBucket,
+    });
   } catch (e) {
     console.error('Unified Flow: Firebase Admin SDK initialization failed!', e);
   }
