@@ -8,38 +8,27 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Users Collection:
-    // - Anyone can create their own user document.
-    // - Users can only read and update their own document.
-    // - On update, only the 'displayName' can be changed.
+    // Users can only manage their own profile, and only change their displayName.
     match /users/{userId} {
-      allow read, update: if request.auth.uid == userId;
-      allow create: if request.auth.uid == userId;
-
-      // Validation: Ensure only 'displayName' is being modified on update.
-      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName']);
+      allow read, create: if request.auth.uid == userId;
+      allow update: if request.auth.uid == userId
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName']);
     }
 
-    // Places Collection:
-    // - Authenticated users can read all places.
-    // - Authenticated users can create a place if the 'createdBy' field matches their UID.
+    // Places can be read by anyone authenticated. Creation is handled by the backend.
     match /places/{placeId} {
       allow read: if request.auth != null;
-      allow create: if request.auth.uid == request.resource.data.createdBy;
+      // Client-side create/update/delete is forbidden to enforce transactional wholeness via the backend.
+      allow write: if false;
     }
 
-    // Documents Subcollection:
-    // - Authenticated users can read documents.
-    // - Client-side writes (create, update, delete) are FORBIDDEN.
-    //   This forces all analysis to go through our secure backend.
+    // Documents can be read, but all writes are forced through the backend.
     match /places/{placeId}/documents/{docId} {
       allow read: if request.auth != null;
       allow write: if false;
     }
     
-    // Feedback Subcollection:
-    // - Authenticated users can read all feedback.
-    // - Authenticated users can create new feedback.
+    // Feedback can be read by anyone, but only created by the correct user.
     match /places/{placeId}/feedback/{feedbackId} {
         allow read: if request.auth != null;
         allow create: if request.auth.uid == request.resource.data.userId;

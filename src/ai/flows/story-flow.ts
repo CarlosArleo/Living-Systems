@@ -3,6 +3,7 @@
  * @fileOverview A flow for synthesizing a "Story of Place" narrative from
  *               all available document summaries for a given place.
  */
+'use server';
 
 import { ai } from '../genkit';
 import { googleAI } from '@genkit-ai/googleai';
@@ -13,12 +14,13 @@ import {
   type StoryOutput,
 } from './story-schemas';
 import * as admin from 'firebase-admin';
+import { projectConfig } from '../config';
 
 // --- Robust Firebase Admin SDK Initialization ---
 if (!admin.apps.length) {
   try {
     admin.initializeApp({
-      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+      storageBucket: projectConfig.storageBucket,
     });
   } catch (e) {
     console.error('CRITICAL: Firebase Admin SDK initialization failed!', e);
@@ -37,29 +39,31 @@ const generateStoryOfPlaceFlow = ai.defineFlow(
   async (input: StoryInput) => {
     console.log(`[generateStoryOfPlaceFlow] Starting for placeId: ${input.placeId}`);
 
-    const capitalsSnapshot = await db
+    const documentsSnapshot = await db
       .collection('places')
       .doc(input.placeId)
-      .collection('capitals')
+      .collection('documents')
+      .where('status', '==', 'analyzed')
       .get();
 
-    if (capitalsSnapshot.empty) {
-      throw new Error('No documents found for this place. Cannot generate a story.');
+    if (documentsSnapshot.empty) {
+      throw new Error('No analyzed documents found for this place. Cannot generate a story.');
     }
 
     const contextPieces: string[] = [];
-    capitalsSnapshot.docs.forEach(doc => {
+    documentsSnapshot.docs.forEach(doc => {
       const data = doc.data();
-      // Add the overall summary of the document
       if (data.overallSummary) {
         contextPieces.push(`From document '${data.sourceFile}': ${data.overallSummary}`);
       }
-      // Add the qualitative summaries from each capital analysis
       if (data.analysis && typeof data.analysis === 'object') {
         for (const capitalKey in data.analysis) {
             const capital = data.analysis[capitalKey];
-            if (capital && capital.qualitativeSummary) {
-                contextPieces.push(`[${capitalKey}] ${capital.qualitativeSummary}`);
+            if (capital && capital.summary) {
+                contextPieces.push(`[${capitalKey}] ${capital.summary}`);
+            }
+             if (capital && Array.isArray(capital.keyDataPoints)) {
+                contextPieces.push(`[${capitalKey} Key Data] ${capital.keyDataPoints.join(', ')}`);
             }
         }
       }
@@ -70,17 +74,16 @@ const generateStoryOfPlaceFlow = ai.defineFlow(
     }
 
     const prompt = `
-        You are a master storyteller and regenerative development expert.
-        Your task is to synthesize the following collection of document summaries and data points into a single, coherent, and compelling "Story of Place."
-        This story should capture the unique identity, core patterns, and evolutionary potential of the place.
-        Weave the different threads from the summaries together into a flowing narrative. Do not just list the summaries.
+        You are a master storyteller and a wise regenerative development expert. Your task is to synthesize the following collection of document summaries and data points into a single, coherent, and compelling "Story of Place." This story should weave the different threads from the summaries together into a flowing narrative that reveals the unique identity and core organizing patterns of this place.
+
+        **CRITICAL DIRECTIVE: Conclude your narrative with a section titled "Latent Potential".** This section MUST identify opportunities and underutilized assets based on the provided context. Do not only describe problems.
 
         CONTEXT & DATA POINTS:
         ---
         ${contextPieces.join('\n---\n')}
         ---
 
-        Based on this context, generate the "Story of Place."
+        Based on the context above, generate the "Story of Place."
     `;
 
     const llmResponse = await ai.generate({

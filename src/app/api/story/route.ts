@@ -7,10 +7,14 @@ import { generateStoryOfPlace } from '@/ai/flows/story-flow';
 import { StoryInputSchema } from '@/ai/flows/story-schemas';
 import * as admin from 'firebase-admin';
 import { getAuth } from 'firebase-admin/auth';
+import { projectConfig } from '@/ai/config';
 
 if (!admin.apps.length) {
   try {
-    admin.initializeApp();
+    admin.initializeApp({
+        projectId: projectConfig.projectId,
+        storageBucket: projectConfig.storageBucket,
+    });
   } catch (e) {
     console.error('CRITICAL: Firebase Admin SDK initialization failed in API route!', e);
   }

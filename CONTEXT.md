@@ -31,7 +31,7 @@ The RDI Platform's core purpose is to augment the practice of regenerative devel
 
 High-level principles are translated into concrete, non-negotiable technical rules here.
 
-*   **Directive: Enforce Wholeness:** All new API endpoints and Server Components that return data for display **MUST** aggregate data from at least two different Firestore collections representing different Capitals. Code that queries only a single Capital is not permitted without explicit override.
+*   **Directive: Enforce Wholeness:** All new API endpoints and Server Components that return data for display **MUST** aggregate data from at least two different Firestore collections representing different Capitals. Code that queries only a single Capital is not permitted without explicit override. Furthermore, the creation of a new 'place' entity MUST be handled by a dedicated backend flow that uses a Firestore transaction to create the main place document AND initial documents in at least two 'capitals' subcollections simultaneously. This directive cannot be enforced by security rules alone.
 *   **Directive: Mandate Potential-Based Framing:** All AI-generated text summaries (e.g., in a "Story of Place" flow) **MUST** conclude with a section titled "Latent Potential" that identifies opportunities and underutilized assets based on the input data. Summaries that only describe problems or deficits are incomplete.
 *   **Directive: Engineer for Collaboration:** Any new feature that displays community-facing data (e.g., a "Story of Place" narrative) **MUST** be accompanied by a corresponding commenting/feedback feature, including the necessary UI components and Firestore subcollection for storing feedback. Stand-alone, non-interactive displays are not permitted.
 
@@ -83,6 +83,47 @@ The system is a **Decoupled Full-Stack Application**. The frontend (Next.js) is 
 *   **CRITICAL: Forced Backend Logic:** Client-side write access to core business data (e.g., the `capitals` subcollection) **MUST** be disabled. All mutations must be forced through secure, authenticated, and validated backend Cloud Functions or Genkit flows using the Admin SDK.
 *   **CRITICAL: Authentication Mandate:** All API routes and server actions that create or modify data **MUST** be protected and require a valid, authenticated Firebase user session. Public, unauthenticated write operations are forbidden.
 
+### 4.1. Security Rule Examples
+
+**Example: Complete Ruleset for Users and Places**
+This is a robust, production-ready ruleset that correctly handles validation and aligns with our architecture where complex logic is handled by the backend.
+
+rules_version = '2';
+service cloud.firestore {
+match /databases/{database}/documents {
+
+    // Default deny: No access unless explicitly allowed.
+    match /{document=**} {
+    allow read, write: if false;
+    }
+
+    // Users can only manage their own profile, and only change their displayName.
+    match /users/{userId} {
+    allow read, create: if request.auth.uid == userId;
+    allow update: if request.auth.uid == userId
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName']);
+    }
+
+    // Places can be read by anyone authenticated. Creation is handled by the backend.
+    match /places/{placeId} {
+    allow read: if request.auth != null;
+    // Client-side create/update/delete is forbidden to enforce transactional wholeness via the backend.
+    allow write: if false;
+    }
+
+    // Documents can be read, but all writes are forced through the backend.
+    match /places/{placeId}/documents/{docId} {
+    allow read: if request.auth != null;
+    allow write: if false;
+    }
+
+    // Feedback can be read by anyone, but only created by the correct user.
+    match /places/{placeId}/feedback/{feedbackId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth.uid == request.resource.data.userId;
+    }
+  }
+}
 ---
 
 ## **5. Testing Philosophy**
