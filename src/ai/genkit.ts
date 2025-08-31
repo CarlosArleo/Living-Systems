@@ -2,22 +2,28 @@
  * @fileoverview Central Genkit configuration file.
  */
 import 'dotenv/config';
-import { genkit } from 'genkit';
+import { genkit, type GenkitOptions } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
-import { firebase } from '@genkit-ai/firebase';
-import { dotprompt } from '@genkit-ai/dotprompt';
+import * as firebase from '@genkit-ai/firebase';
+import { Dotprompt } from '@genkit-ai/dotprompt';
 
-export const ai = genkit({
+// Define Genkit configuration
+const genkitOptions: GenkitOptions = {
   plugins: [
     googleAI(),
-    firebase({
+    // Correctly initialize the firebase plugin using the namespace import
+    firebase.firebase({
       flowStateStore: 'firebase',
       traceStore: 'firebase',
     }),
-    dotprompt({ dir: './src/ai/prompts' }),
+    // Correctly initialize the Dotprompt plugin with a capital D
+    Dotprompt({ dir: './src/ai/prompts' }),
   ],
-  enableTracingAndMetrics: true,
-});
+  // Correctly remove invalid top-level options
+};
+
+// Initialize and export the configured genkit instance
+export const ai = genkit(genkitOptions);
 
 // Export the googleAI plugin for direct use in other files if needed
 export { googleAI };
