@@ -60,6 +60,7 @@ export async function POST(req: NextRequest) {
     // and the heavy AI work happens in the background.
     processUploadedDocument({ 
         ...validation.data,
+        fileName: validation.data.sourceFile, // Add the missing 'fileName' property
         uploadedBy: uid,
         documentId: documentId 
      }).catch(flowError => {

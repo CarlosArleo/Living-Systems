@@ -9,10 +9,14 @@ import { z } from 'zod';
 import { processUploadedDocument } from '@/ai/flows/processing'; 
 import { getAuth } from 'firebase-admin/auth';
 import * as admin from 'firebase-admin';
+import { projectConfig } from '@/ai/config';
 
 if (!admin.apps.length) {
     try {
-      admin.initializeApp();
+      admin.initializeApp({
+        projectId: projectConfig.projectId,
+        storageBucket: projectConfig.storageBucket,
+      });
     } catch (e) {
       console.error('CRITICAL: Firebase Admin SDK initialization failed in API route!', e);
     }
@@ -56,6 +60,7 @@ export async function POST(req: NextRequest) {
     // and the heavy AI work happens in the background.
     processUploadedDocument({ 
         ...validation.data,
+        fileName: validation.data.sourceFile, // Add the missing 'fileName' property
         uploadedBy: uid,
         documentId: documentId 
      }).catch(flowError => {
