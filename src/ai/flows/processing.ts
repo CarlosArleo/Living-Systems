@@ -23,13 +23,13 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 const storage = getStorage();
 
-// --- Zod Schemas ---
+// --- Hardened Zod Schemas ---
 const FlowInputSchema = z.object({
-  placeId: z.string(),
-  documentId: z.string(),
-  storagePath: z.string(),
-  fileName: z.string(),
-  uploadedBy: z.string(), // UID of the user who uploaded the file
+  placeId: z.string().min(1, { message: "placeId cannot be empty." }),
+  documentId: z.string().min(1, { message: "documentId cannot be empty." }),
+  storagePath: z.string().min(1, { message: "storagePath cannot be empty." }),
+  fileName: z.string(), // fileName can be empty if it's at the root of a folder.
+  uploadedBy: z.string().min(1, { message: "uploadedBy UID cannot be empty." }),
 });
 
 const CapitalExtractionSchema = z.object({
@@ -69,26 +69,28 @@ export const processUploadedDocument = ai.defineFlow(
     }),
   },
   async ({ placeId, documentId, storagePath, fileName, uploadedBy }) => {
+    // Genkit automatically validates the input against the schema before execution.
+    // If the trigger passes an empty placeId or documentId, the flow will fail here.
+    
     const docRef = db.collection('places').doc(placeId).collection('documents').doc(documentId);
 
     try {
-      // ** Step 1: Create Metadata Document (The "Librarian" task) **
-      // This is the critical step to prevent the race condition.
+      // Step 1: Create Metadata
       console.log(`[processUploadedDocument] Creating metadata for doc: ${documentId}`);
       await docRef.set({
         sourceFile: fileName,
         storagePath: storagePath,
         uploadedBy: uploadedBy,
         uploadedAt: admin.firestore.FieldValue.serverTimestamp(),
-        status: 'processing', // Initial status
+        status: 'processing',
       });
 
-      // ** Step 2: Perform Analysis (The "Deep Analyst" task) **
+      // Step 2: Perform Analysis
       console.log(`[processUploadedDocument] Starting analysis for doc: ${documentId}`);
       const fileRef = storage.bucket().file(storagePath);
       const [signedUrl] = await fileRef.getSignedUrl({
         action: 'read',
-        expires: Date.now() + 15 * 60 * 1000, // 15-minute expiry
+        expires: Date.now() + 15 * 60 * 1000,
       });
 
       if (!signedUrl) {
@@ -96,6 +98,7 @@ export const processUploadedDocument = ai.defineFlow(
       }
 
       const promptTemplate = await loadPromptTemplate();
+      // Replace placeholders in the prompt template
       const prompt = promptTemplate
         .replace('{{sourceFile}}', fileName)
         .replace('{{fileUrl}}', signedUrl);
@@ -111,7 +114,7 @@ export const processUploadedDocument = ai.defineFlow(
         throw new Error("AI model returned an empty or invalid output.");
       }
 
-      // ** Step 3: Update Document with Analysis **
+      // Step 3: Update Document with Analysis
       console.log(`[processUploadedDocument] Storing analysis results for doc: ${documentId}`);
       await docRef.update({
         status: 'analyzed',
@@ -126,9 +129,8 @@ export const processUploadedDocument = ai.defineFlow(
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error during processing.';
       console.error(`[processUploadedDocument] Failed to process doc: ${documentId}. Error: ${errorMessage}`);
-      // Update the document with a 'failed' status for observability.
       await docRef.set({ status: 'failed', error: errorMessage }, { merge: true });
-      throw error; // Re-throw to let the Cloud Function trigger know it failed.
+      throw error;
     }
   }
 );
