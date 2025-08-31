@@ -8,3 +8,4 @@ import './flows/harmonize';
 import './flows/knowledge';
 import './flows/rag-flow';
 import './flows/story-flow';
+import './flows/embed'; // Add the new embedding flow
