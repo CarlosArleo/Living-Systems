@@ -13,6 +13,7 @@ import * as admin from 'firebase-admin';
 import { getStorage } from 'firebase-admin/storage';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { getFirestore } from 'firebase-admin/firestore';
 
 // --- Initialization ---
 if (!admin.apps.length) {
@@ -22,7 +23,7 @@ if (!admin.apps.length) {
     console.error('Unified Flow: Firebase Admin SDK initialization failed!', e);
   }
 }
-const db = admin.firestore();
+const db = getFirestore();
 const storage = getStorage();
 
 // --- Hardened Zod Schemas ---
@@ -30,7 +31,7 @@ const FlowInputSchema = z.object({
   placeId: z.string().min(1, { message: "placeId cannot be empty." }),
   documentId: z.string().min(1, { message: "documentId cannot be empty." }),
   storagePath: z.string().min(1, { message: "storagePath cannot be empty." }),
-  fileName: z.string(), // fileName can be empty if it's at the root of a folder.
+  fileName: z.string(),
   uploadedBy: z.string().min(1, { message: "uploadedBy UID cannot be empty." }),
 });
 type FlowInput = z.infer<typeof FlowInputSchema>;
@@ -56,26 +57,25 @@ const AIOutputSchema = z.object({
 
 // --- Helper Functions ---
 async function loadPromptTemplate(): Promise<string> {
-  const promptPath = path.join(process.cwd(), 'src/ai/prompts/integralAssessment.prompt');
-  // A simple fallback if the prompt file isn't created yet.
-  const defaultPrompt = `
-      You are an expert data extractor for a Regenerative Development project. Your task is to read the document provided via the URL and structure its content.
-
-      DOCUMENT DETAILS:
-      - Source File Name: "{{sourceFile}}"
-      - Document Content: {{media url='{{fileUrl}}'}}
-
-      EXTRACTION REQUIREMENTS:
-      1.  Provide a brief, 1-2 sentence overallSummary.
-      2.  Extract ALL geographic information as a valid GeoJSON FeatureCollection.
-      3.  Perform a detailed analysis for EACH of the five capitals (Natural, Human, Social, Manufactured, Financial), extracting relevant text, a summary, and key data points.
-      4.  Return a single, valid JSON object that strictly follows the required Zod schema.
-  `;
+  const promptPath = path.join(process.cwd(), 'docs', 'AI_Prompt_Engineering_Framework.md');
   try {
-      return await fs.readFile(promptPath, 'utf-8');
+      const frameworkContent = await fs.readFile(promptPath, 'utf-8');
+      const match = frameworkContent.match(/# MASTER PROMPT: DOCUMENT ANALYSIS & FIVE CAPITALS HARMONIZATION([\s\S]*?)---DOCUMENT START---/);
+      if (match && match[1]) {
+        return match[1].trim();
+      }
+      throw new Error("Could not find the Master Prompt in the framework document.");
   } catch (e) {
-      console.warn(`Could not load prompt from ${promptPath}. Using default.`)
-      return defaultPrompt;
+      console.warn(`Could not load prompt from ${promptPath}. Using default. Error: ${e}`)
+      return `
+          You are an expert data extractor for a Regenerative Development project. Your task is to read the provided document and structure its content into the Five Capitals framework, and to extract any and all geospatial data.
+          
+          DOCUMENT DETAILS:
+          - Source File Name: "{{sourceFile}}"
+          - Document Content: {{media url='{{fileUrl}}'}}
+
+          Return a single, valid JSON object that strictly follows the Zod schema provided by the system.
+      `;
   }
 }
 
@@ -91,7 +91,6 @@ export const processUploadedDocument = ai.defineFlow(
     }),
   },
   async (input: FlowInput) => {
-    // CORRECTED: Destructure the payload from the input object.
     const { placeId, documentId, storagePath, fileName, uploadedBy } = input;
     
     const docRef = db.collection('places').doc(placeId).collection('documents').doc(documentId);
@@ -143,7 +142,7 @@ export const processUploadedDocument = ai.defineFlow(
         analysisTimestamp: admin.firestore.FieldValue.serverTimestamp(),
         analysis: aiOutput.analysis,
         overallSummary: aiOutput.overallSummary,
-        geoJSON: JSON.stringify(aiOutput.geoJSON),
+        geoJSON: JSON.stringify(aiOutput.geoJSON), // Store GeoJSON as a string
       });
 
       return { documentId, status: 'success', message: 'Document processed and analyzed successfully.' };
@@ -151,7 +150,9 @@ export const processUploadedDocument = ai.defineFlow(
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error during processing.';
       console.error(`[processUploadedDocument] Failed to process doc: ${documentId}. Error: ${errorMessage}`);
+      // Use .set with merge:true to create the doc if it failed before creation
       await docRef.set({ status: 'failed', error: errorMessage }, { merge: true });
+      // Re-throw the error to ensure the calling function knows about the failure.
       throw error;
     }
   }
