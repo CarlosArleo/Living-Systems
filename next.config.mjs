@@ -1,11 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Adding this experimental flag helps ensure the cache is fully invalidated.
   experimental: {
     serverComponentsExternalPackages: ['@genkit-ai/core', '@genkit-ai/googleai']
   },
-  webpack: (config) => {
-    // This empty webpack modification is a safe way to ensure a full rebuild.
+   webpack: (config) => {
+    config.externals.push({
+      'utf-8-validate': 'commonjs utf-8-validate',
+      'bufferutil': 'commonjs bufferutil',
+    });
     return config;
   },
 };
