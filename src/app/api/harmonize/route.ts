@@ -1,3 +1,4 @@
+
 /**
  * @fileOverview API route to trigger the initial data harmonization (metadata creation) flow.
  * This is called by the client immediately after uploading a file to Cloud Storage.
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest) {
     processUploadedDocument({ 
         ...validation.data,
         uploadedBy: uid,
-        documentId: documentId
+        documentId: documentId 
      });
 
     // Return an immediate success response to the client.
