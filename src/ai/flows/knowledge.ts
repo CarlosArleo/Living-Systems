@@ -61,7 +61,7 @@ export const indexerFlow = ai.defineFlow(
     const embeddingResponses = await ai.embed({
       embedder: googleAI.embedder('text-embedding-004'),
       // CORRECTED: Map the string array to the required DocumentData structure.
-      content: texts.map(t => ({text: t})),
+      content: texts,
     });
 
     // 3. Write the new documents to Firestore.

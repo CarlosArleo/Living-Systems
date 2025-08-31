@@ -3,9 +3,9 @@
  */
 import 'dotenv/config';
 import { genkit, type GenkitOptions } from 'genkit';
-import { firebase } from '@genkit-ai/firebase/plugin'; // Correct import path for the plugin
+import { firebase } from '@genkit-ai/firebase/plugin'; 
 import { googleAI } from '@genkit-ai/googleai';
-import { Dotprompt } from '@genkit-ai/dotprompt'; // Correct import for the class
+import { Dotprompt } from '@genkit-ai/dotprompt';
 
 // This is the only file that should configure the main `ai` instance.
 // Its only export should be `ai`.

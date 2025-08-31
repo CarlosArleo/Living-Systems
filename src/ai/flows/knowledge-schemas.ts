@@ -5,7 +5,7 @@
 import { z } from 'zod';
 import { ai } from '@/ai/genkit';
 import { googleAI } from '@genkit-ai/googleai';
-import { defineFirestoreRetriever } from '@genkit-ai/firebase';
+import { defineFirestoreRetriever } from '@genkit-ai/firebase/retriever';
 import * as admin from 'firebase-admin';
 
 // This file does not re-initialize firebase-admin, it assumes it's been
@@ -56,7 +56,7 @@ export type RagQueryOutput = z.infer<typeof RagQueryOutputSchema>;
  * Filtering by placeId is handled dynamically in the RAG flow itself.
  */
 // CORRECTED: Pass the `ai` instance as the first argument.
-export const knowledgeRetriever = defineFirestoreRetriever(ai, {
+export const knowledgeRetriever = defineFirestoreRetriever({
   name: `knowledgeRetriever`,
   label: 'RDI Knowledge Base',
   firestore: db,
