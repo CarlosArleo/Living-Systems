@@ -5,7 +5,7 @@
  */
 'use server';
 
-import { ai, googleAI } from '../genkit';
+import { ai, googleAI } from '@/ai/genkit';
 import { z } from 'zod';
 
 const CritiqueInputSchema = z.object({
@@ -69,4 +69,3 @@ export const critiqueCode = ai.defineFlow(
     return llmResponse.text;
   }
 );
-    

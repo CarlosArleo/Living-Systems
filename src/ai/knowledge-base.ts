@@ -5,8 +5,8 @@
  */
 'use server';
 
-import { ai } from './genkit'; 
-import { googleAI } from '@genkit-ai/googleai'; 
+import { ai } from '@/ai/genkit';
+import { googleAI } from '@genkit-ai/googleai';
 import { promises as fs } from 'fs';
 import path from 'path';
 
@@ -78,13 +78,11 @@ export async function retrieveRelevantContext(
       content: taskDescription,
   });
   
-  // Correctly access the embedding from the response array
-  const queryEmbedding = embeddingResponse[0].embedding;
+  const queryEmbedding = embeddingResponse;
 
   if (!queryEmbedding) {
       throw new Error("Failed to generate an embedding for the query.");
   }
-
 
   const similarities = base.map((chunk) => ({
     text: chunk.text,

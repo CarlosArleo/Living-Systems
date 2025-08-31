@@ -1,3 +1,4 @@
+
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
@@ -7,7 +8,7 @@ export const myFirstFlow = ai.defineFlow(
     inputSchema: z.string(),
     outputSchema: z.string(),
   },
-  async (prompt) => {
+  async (prompt: string) => {
     // For now, we'll just parrot back the input.
     // In a real app, you would call a model here.
     return `You sent me this: ${prompt}. It works!`;
