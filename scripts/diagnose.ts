@@ -24,6 +24,7 @@ interface FlowManifest {
  */
 async function runPreFlightChecks() {
     console.log('--- PRE-FLIGHT CHECKS ---');
+    console.log('[i] Checking for required environment variables in .env file...');
     try {
         // This dynamic import will throw an error if config.ts fails,
         // which is what we want.
