@@ -1,7 +1,7 @@
 /**
- * @fileOverview Schemas and non-server objects for the knowledge and RAG flows.
- *               This file is safe to import on the client.
+ * @fileOverview Schemas and retriever definitions for the knowledge and RAG flows.
  */
+'use server';
 
 import { z } from 'zod';
 import { ai, googleAI } from '../genkit';
@@ -25,7 +25,6 @@ export const IndexerInputSchema = z.object({
   texts: z.array(z.string()),
 });
 
-
 // --- Schemas for RAG Flow ---
 export const RagQueryInputSchema = z.object({
   placeId: z.string(),
@@ -40,19 +39,19 @@ export const RagQueryOutputSchema = z.object({
 export type RagQueryOutput = z.infer<typeof RagQueryOutputSchema>;
 
 
-// --- Retrievers ---
+// --- Retriever Definition ---
 
 /**
- * Creates a generic Firestore retriever for the 'knowledge' collection.
- * Filtering by placeId is now handled in the RAG flow itself.
+ * Defines a generic retriever for the 'knowledge' collection in Firestore.
+ * This is the modern, correct API usage for Genkit v1.18.0.
+ * Filtering by placeId is handled dynamically in the RAG flow itself.
  */
-export function createKnowledgeRetriever() {
-  return defineFirestoreRetriever(ai, {
-    name: `knowledgeRetriever`,
-    firestore: db,
-    collection: 'knowledge',
-    contentField: 'text',
-    vectorField: 'embedding',
-    embedder: googleAI.embedder('text-embedding-004'),
-  });
-}
+export const knowledgeRetriever = defineFirestoreRetriever(ai, {
+  name: `knowledgeRetriever`,
+  label: 'RDI Knowledge Base',
+  firestore: db,
+  collection: 'knowledge', // Specify the root collection to search within
+  contentField: 'text',
+  vectorField: 'embedding',
+  embedder: googleAI.embedder('text-embedding-004'),
+});

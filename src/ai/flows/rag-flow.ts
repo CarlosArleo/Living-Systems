@@ -7,7 +7,7 @@
 
 import { ai, googleAI } from '../genkit';
 import {
-  createKnowledgeRetriever,
+  knowledgeRetriever, // Import the single, generic retriever
   RagQueryInputSchema,
   RagQueryOutputSchema,
   type RagQueryInput,
@@ -26,18 +26,15 @@ const ragQueryFlow = ai.defineFlow(
   async ({ placeId, query }) => {
     console.log(`[ragQueryFlow] Received query: "${query}" for placeId: "${placeId}"`);
 
-    // 1. Create a generic retriever for the knowledge collection.
-    const knowledgeRetriever = createKnowledgeRetriever();
-
-    // 2. Retrieve relevant documents, filtering by placeId in the 'where' option.
-    // This is the modern, correct way to perform scoped retrievals.
+    // Retrieve relevant documents, filtering by placeId in the 'where' option.
+    // This is the modern, correct way to perform scoped retrievals with Genkit.
     console.log(`[ragQueryFlow] Retrieving documents from knowledge base for place: ${placeId}...`);
     const docs = await ai.retrieve({
       retriever: knowledgeRetriever,
       query: query,
       options: { 
         k: 5, // Get the top 5 most relevant documents
-        where: { placeId: placeId }, // Filter documents where placeId matches
+        where: { placeId: placeId }, // Dynamically filter documents where placeId matches
       }, 
     });
 
@@ -53,7 +50,7 @@ const ragQueryFlow = ai.defineFlow(
     const contextChunks = docs.map(doc => doc.content[0].text || '');
     console.log(`[ragQueryFlow] Found ${contextChunks.length} relevant context chunks.`);
 
-    // 3. Augment the prompt with the retrieved context.
+    // Augment the prompt with the retrieved context.
     const augmentedPrompt = `
       You are an expert on Regenerative Development.
       Using ONLY the following context, please provide a comprehensive answer to the user's question.
@@ -69,7 +66,7 @@ const ragQueryFlow = ai.defineFlow(
       ${query}
     `;
 
-    // 4. Generate the final answer using the augmented prompt.
+    // Generate the final answer using the augmented prompt.
     console.log('[ragQueryFlow] Generating final answer...');
     const llmResponse = await ai.generate({
       model: googleAI.model('gemini-1.5-flash'),
