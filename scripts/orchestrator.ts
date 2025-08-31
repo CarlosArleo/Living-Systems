@@ -1,3 +1,4 @@
+
 /**
  * @fileOverview The main orchestrator script for the autonomous development cycle.
  */
@@ -18,6 +19,7 @@ async function runDevelopmentCycle(taskDescription: string, outputFilePath: stri
 
   let currentCode: string | undefined;
   let auditReport: string | undefined;
+  // Initialize verdict as FAIL to ensure the loop runs at least once.
   let verdict: 'PASS' | 'FAIL' = 'FAIL';
 
   for (let attempt = 1; attempt <= 3; attempt++) {
@@ -25,15 +27,15 @@ async function runDevelopmentCycle(taskDescription: string, outputFilePath: stri
 
     // Step 1: Generate or Correct Code
     const relevantContextChunks = await retrieveRelevantContext(taskDescription);
-    const relevantContext = relevantContextChunks.join('\n---\n');
     console.log(`[Orchestrator] Retrieved ${relevantContextChunks.length} context chunks.`);
     
     console.log('[Orchestrator] Calling Generator Agent...');
+    
+    // CORRECTED: Pass the context as an array and use the correct parameter name 'critique'.
     currentCode = await generateCode({
         taskDescription,
-        context: relevantContext,
-        // On subsequent attempts, pass the failed code and critique
-        ...(currentCode && auditReport && { failedCode: currentCode, auditReport: auditReport }),
+        context: relevantContextChunks,
+        ...(currentCode && auditReport && { failedCode: currentCode, critique: auditReport }),
     });
 
     if (!currentCode) {
@@ -45,14 +47,16 @@ async function runDevelopmentCycle(taskDescription: string, outputFilePath: stri
     // Step 2: Critique the generated code
     const projectConstitution = await fs.readFile(path.join(process.cwd(), 'CONTEXT.md'), 'utf-8');
     
-    // CORRECTED: Call critiqueCode with the right parameters and handle the object response.
-    const critiqueResult = await critiqueCode({
-      code: currentCode,
-      context: projectConstitution,
+    // CORRECTED: Call critiqueCode with the correct parameter names.
+    const rawCritiqueReport = await critiqueCode({
+      codeToCritique: currentCode,
+      projectConstitution: projectConstitution,
     });
-
-    verdict = critiqueResult.verdict as 'PASS' | 'FAIL';
-    auditReport = critiqueResult.issuesFound;
+    
+    // Parse the structured Markdown report to extract the verdict and issues.
+    const verdictMatch = rawCritiqueReport.match(/\*\*Verdict:\*\*\s*(PASS|FAIL)/i);
+    verdict = (verdictMatch ? verdictMatch[1].toUpperCase() : 'FAIL') as 'PASS' | 'FAIL';
+    auditReport = rawCritiqueReport;
     
     console.log(`[Orchestrator] Critique Verdict: ${verdict}`);
     
