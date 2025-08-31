@@ -20,3 +20,7 @@
 {"id":"2b43532ff40a6ca0816c00bc9a0037de","type":"flow","start":1756668225106,"name":"processUploadedDocument","end":1756668226460.9946,"status":2}
 {"id":"9ff68ab8a69f9f30e4f453bbf6280568","type":"UNKNOWN","start":1756668534705,"name":"GET","end":1756668534891.1985,"status":0}
 {"id":"4cb969510032681e62b9b85c547cac6d","type":"flow","start":1756668549873,"name":"processUploadedDocument","end":1756668565378.001,"status":0}
+{"id":"aa0b8c2e8aac0933d53f81ebd89b950e","type":"flow","start":1756668780786,"name":"ragQueryFlow","end":1756668781507.1711,"status":0}
+{"id":"d962f210a132b3d86e7e5e2c6b788748","type":"flow","start":1756668785330,"name":"processUploadedDocument","end":1756668793205.8481,"status":0}
+{"id":"529a49e59bdba823d6de6e3fa1994bd9","type":"flow","start":1756668803815,"name":"indexerFlow","end":1756668804666.1306,"status":0}
+{"id":"efdcceef9dde2e3e2b90b4b363e4d3ab","type":"flow","start":1756668808467,"name":"generateStoryOfPlaceFlow","end":1756668808745.7117,"status":2}

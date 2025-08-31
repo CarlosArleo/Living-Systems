@@ -1,14 +1,12 @@
 /**
  * @fileoverview Central Genkit configuration file.
  */
-import 'dotenv/config';
-import { genkit, type GenkitOptions } from 'genkit';
-// CORRECTED: Enable Firebase telemetry separately - there's no firebase plugin function
-import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
-import { googleAI } from '@genkit-ai/googleai';
+'use server';
 
-// Enable Firebase telemetry for monitoring
-enableFirebaseTelemetry();
+import { genkit, type GenkitOptions } from 'genkit';
+import { googleAI } from '@genkit-ai/googleai';
+import { googleCloud } from '@genkit-ai/google-cloud';
+import { projectConfig } from './config';
 
 // This is the only file that should configure the main `ai` instance.
 // Its only export should be `ai`.
@@ -16,8 +14,14 @@ enableFirebaseTelemetry();
 const genkitConfig: GenkitOptions = {
   plugins: [
     googleAI(),
-    // Note: Firebase telemetry is enabled above, not as a plugin
+    googleCloud({
+      projectId: projectConfig.projectId,
+      storageBucket: projectConfig.storageBucket,
+      location: projectConfig.location,
+    }),
   ],
+  flowStateStore: 'googleCloud',
+  traceStore: 'googleCloud',
 };
 
 export const ai = genkit(genkitConfig);
