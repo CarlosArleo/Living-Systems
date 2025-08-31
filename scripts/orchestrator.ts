@@ -1,117 +1,110 @@
-/**
- * @fileOverview The Master Orchestrator Agent script.
- * This script automates the full Generate -> Critique -> Correct development cycle.
- */
+// scripts/orchestrator.ts
 
-import { promises as fs } from 'fs';
-import path from 'path';
+import { configure } from '@genkit-ai/core';
+import { googleAI } from '@genkit-ai/googleai';
 import { retrieveRelevantContext } from '../src/ai/knowledge-base';
 import { generateCode } from '../src/ai/flows/generateCode';
 import { critiqueCode } from '../src/ai/flows/critiqueCode';
-import { configureGenkit } from 'genkit';
-import { googleAI } from '@genkit-ai/googleai';
-import dotenv from 'dotenv';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
-dotenv.config();
-
-// Initialize Genkit for standalone script usage
-configureGenkit({
-  plugins: [
-    googleAI({
-      apiKey: process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY,
-    }),
-  ],
-  logLevel: 'silent',
-  enableTracingAndMetrics: false,
+// Configure Genkit for this script's execution context
+configure({
+  plugins: [googleAI()],
+  logLevel: 'debug',
+  enableTracingAndMetrics: true,
 });
 
-const MAX_RETRIES = 3;
-
 /**
- * Parses the verdict from a critique report.
- * @param report The full Markdown report from the critique agent.
- * @returns 'PASS', 'FAIL', or 'UNKNOWN'.
+ * Parses the verdict from the critique agent's markdown report.
+ * @param report The markdown report string.
+ * @returns 'PASS' or 'FAIL'.
  */
-function parseVerdict(report: string): 'PASS' | 'FAIL' | 'UNKNOWN' {
-  const match = report.match(/\*\*3\. Verdict:\*\*\s*\n(PASS|FAIL)/);
-  if (match && match[1]) {
-    return match[1] as 'PASS' | 'FAIL';
-  }
-  return 'UNKNOWN';
+function parseVerdict(report: string): 'PASS' | 'FAIL' {
+    const match = report.match(/\*\*Verdict:\*\*\s*(PASS|FAIL)/);
+    if (match && match[1]) {
+        return match[1] as 'PASS' | 'FAIL';
+    }
+    console.warn("[Orchestrator] Could not parse verdict from critique report. Defaulting to FAIL.");
+    return 'FAIL';
 }
 
+
 /**
- * Executes the full Generate -> Critique -> Correct development cycle for a given task.
- * @param taskDescription A high-level description of the development task.
- * @returns The final, audited code that has passed the critique.
+ * The main function for the Orchestrator Agent.
+ * Automates the Generate -> Critique -> Correct loop.
  */
-export async function runDevelopmentCycle(taskDescription: string): Promise<string> {
-  console.log(`🚀 Starting new development cycle for task: "${taskDescription}"`);
+async function runDevelopmentCycle(taskDescription: string, outputFilePath: string) {
+  console.log(`[Orchestrator] Starting development cycle for: "${taskDescription}"`);
 
-  // 1. Context Retrieval
-  console.log('Step 1: Retrieving relevant context from knowledge base...');
-  const relevantContext = await retrieveRelevantContext(taskDescription);
-  console.log(`- Found ${relevantContext.length} relevant context chunks.`);
+  let currentCode: string | undefined;
+  let finalCode: string | undefined;
+  let critique: string | undefined;
+  const maxAttempts = 3;
 
-  // 2. Initial Generation
-  console.log('\nStep 2: Generating initial code draft...');
-  let currentCode = await generateCode({
-    taskDescription,
-    context: relevantContext,
-  });
-  console.log('- Initial draft generated.');
-  
-  // Load the full project constitution for the critique agent
-  const constitutionPath = path.join(process.cwd(), 'CONTEXT.md');
-  const projectConstitution = await fs.readFile(constitutionPath, 'utf-8');
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    console.log(`\n[Orchestrator] Attempt #${attempt}`);
 
-  // 3. Critique and Correction Loop
-  for (let i = 0; i < MAX_RETRIES; i++) {
-    console.log(`\nStep 3: Audit Cycle ${i + 1}/${MAX_RETRIES}`);
-    console.log('- Auditing generated code against project constitution...');
+    // 1. Retrieve relevant context
+    console.log('[Orchestrator] Retrieving relevant context from knowledge base...');
+    const relevantContext = await retrieveRelevantContext(taskDescription);
+    console.log('[Orchestrator] Context retrieved successfully.');
 
-    const critiqueReport = await critiqueCode({
-      codeToCritique: currentCode,
-      projectConstitution,
-    });
+    // 2. Generate or Correct Code
+    console.log(currentCode ? '[Orchestrator] Calling Generator Agent for correction...' : '[Orchestrator] Calling Generator Agent for initial generation...');
     
-    console.log('--- AUDIT REPORT ---');
-    console.log(critiqueReport);
-    console.log('--------------------');
+    const generatorInput = currentCode && critique 
+      ? { taskDescription, context: relevantContext, failedCode: currentCode, critique } 
+      : { taskDescription, context: relevantContext };
+      
+    currentCode = await generateCode(generatorInput);
+
+    if (!currentCode) {
+      console.error('[Orchestrator] Generator Agent failed to produce code.');
+      continue; // Try again
+    }
+    console.log('[Orchestrator] Code generated. Submitting for critique...');
+
+    // 3. Critique Code
+    const fullConstitution = await fs.readFile(path.join(process.cwd(), 'CONTEXT.md'), 'utf-8');
+    const critiqueReport = await critiqueCode({ codeToCritique: currentCode, projectConstitution: fullConstitution });
+    critique = critiqueReport; // Store critique for next loop
+
+    if (!critiqueReport) {
+        console.error('[Orchestrator] Critique Agent failed to produce a report.');
+        continue; // Try again
+    }
 
     const verdict = parseVerdict(critiqueReport);
-    console.log(`- Critique Verdict: ${verdict}`);
+    console.log(`[Orchestrator] Critique Verdict: ${verdict}`);
 
+    // 4. Decision
     if (verdict === 'PASS') {
-      console.log('\n✅ Code has passed the audit. Development cycle complete.');
-      return currentCode;
-    }
-
-    if (verdict === 'FAIL') {
-      if (i < MAX_RETRIES - 1) {
-        console.log('- Code failed audit. Initiating correction...');
-        currentCode = await generateCode({
-          taskDescription,
-          context: relevantContext,
-          failedCode: currentCode,
-          critique: critiqueReport,
-        });
-        console.log('- Corrected code draft generated.');
-      } else {
-        console.error(`\n❌ FAILED: Code did not pass audit after ${MAX_RETRIES} attempts.`);
-        throw new Error('Failed to produce satisfactory code after multiple correction cycles.');
-      }
+      console.log('[Orchestrator] ✅ Code has passed the audit!');
+      finalCode = currentCode;
+      break; // Exit the loop
     } else {
-        throw new Error('Could not parse verdict from critique report.');
+      console.log('[Orchestrator] ❌ Code failed audit. Preparing for correction loop...');
+      console.log('Issues Found:\n', critiqueReport);
     }
   }
 
-  throw new Error('Development cycle failed to complete within the retry limit.');
+  if (finalCode) {
+    console.log(`\n[Orchestrator] Writing final code to ${outputFilePath}`);
+    await fs.writeFile(outputFilePath, finalCode);
+    console.log('[Orchestrator] ✅ Development cycle complete.');
+  } else {
+    console.error(`\n[Orchestrator] ❌ Failed to produce passing code after ${maxAttempts} attempts.`);
+    process.exit(1);
+  }
 }
 
-// Example usage: To run this script from the command line, you could add:
-// runDevelopmentCycle("Create a Firestore security rule that allows users to read their own data.").then(code => {
-//   console.log("\n\n=== FINAL APPROVED CODE ===\n", code);
-// }).catch(err => {
-//   console.error(err);
-// });
+// Example of how to run it from the command line
+const task = process.argv[2];
+const outputFile = process.argv[3];
+if (!task || !outputFile) {
+  console.error('Usage: npx tsx scripts/orchestrator.ts "<task_description>" <output_file_path>');
+  process.exit(1);
+}
+
+runDevelopmentCycle(task, outputFile).catch(console.error);

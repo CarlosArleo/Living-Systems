@@ -1,80 +1,71 @@
-/**
- * @fileOverview A script to process the project's knowledge base files into a structured,
- * embeddable JSON format for the Retrieval-Augmented Generation (RAG) system.
- * This script reads all markdown files from the /docs/AI Brain/ directory, chunks them,
- * generates embeddings using a Genkit flow, and saves the output.
- * To run: `npm run build:context`
- */
-import { promises as fs } from 'fs';
-import path from 'path';
-import { embedText } from '../src/ai/flows/embed';
-import { configureGenkit } from 'genkit';
-import { googleAI } from '@genkit-ai/googleai';
+// scripts/process-context.ts
 
-// Initialize Genkit for standalone script usage
-configureGenkit({
+import { configure } from '@genkit-ai/core';
+import { ai, googleAI } from '../src/ai/genkit'; // Correct import for the ai object
+import * as fs from 'fs/promises';
+import * as path from 'path';
+
+// 1. Configure Genkit with the necessary plugins.
+// This is redundant if the imported 'ai' object is already configured,
+// but safe to have for a standalone script.
+configure({
   plugins: [
-    googleAI({
-      apiKey: process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY,
-    }),
+    googleAI(), // This plugin provides access to Gemini models.
   ],
-  logLevel: 'silent', // Keep the console output clean
-  enableTracingAndMetrics: false,
+  logLevel: 'debug',
+  enableTracingAndMetrics: true,
 });
 
-type KnowledgeChunk = {
-  text: string;
-  embedding: number[];
-};
-
-async function processContext() {
-  console.log('Starting context processing for RAG knowledge base...');
-
-  const docsDir = path.join(process.cwd(), 'docs', 'AI Brain');
-  const outputPath = path.join(process.cwd(), 'rag-memory.json'); // CORRECTED: Output to root rag-memory.json
-  const knowledgeBase: KnowledgeChunk[] = [];
-  let totalProcessedChunks = 0;
+/**
+ * Main function to process the CONTEXT.md file.
+ */
+async function processContextFile() {
+  console.log('Starting context processing...');
 
   try {
-    const files = await fs.readdir(docsDir);
-    const markdownFiles = files.filter(file => file.endsWith('.md'));
+    // 2. Define file paths
+    const contextFilePath = path.join(process.cwd(), 'CONTEXT.md');
+    // CORRECTED: Output to the root of the project.
+    const outputFilePath = path.join(process.cwd(), 'rag-memory.json');
 
-    console.log(`Found ${markdownFiles.length} markdown files to process.`);
+    // 3. Read the CONTEXT.md file
+    console.log(`Reading CONTEXT.md from: ${contextFilePath}`);
+    const contextContent = await fs.readFile(contextFilePath, 'utf-8');
 
-    for (const file of markdownFiles) {
-      const filePath = path.join(docsDir, file);
-      console.log(`\nProcessing file: ${file}`);
-      const content = await fs.readFile(filePath, 'utf-8');
+    // 4. Chunk the document by Markdown headers (##)
+    console.log('Chunking document...');
+    // This regex splits the string by '## ' but keeps the delimiter in the resulting array.
+    const chunks = contextContent.split(/\n(?=##\s)/).filter(chunk => chunk.trim() !== '');
+    console.log(`Found ${chunks.length} chunks to process.`);
 
-      // Chunking Strategy: Split by major Markdown headers (## and ###)
-      const chunks = content.split(/\n(?=##?#? )/);
-      console.log(`- Split into ${chunks.length} chunks.`);
+    // 5. Generate embeddings for each chunk
+    const knowledgeBase = [];
+    for (const chunk of chunks) {
+      console.log(`Embedding chunk starting with: "${chunk.substring(0, 40).replace(/\n/g, ' ')}..."`);
+      
+      // CORRECTED: Use the imported 'ai' object and its methods.
+      const embeddingResponse = await ai.embed({
+        embedder: googleAI.embedder('text-embedding-004'),
+        content: chunk,
+      });
 
-      for (const chunk of chunks) {
-        const trimmedChunk = chunk.trim();
-        if (trimmedChunk) {
-          try {
-            const embedding = await embedText(trimmedChunk);
-            knowledgeBase.push({
-              text: trimmedChunk,
-              embedding: embedding,
-            });
-            totalProcessedChunks++;
-          } catch (error) {
-            console.error(`- Failed to generate embedding for chunk: "${trimmedChunk.substring(0, 50)}..."`, error);
-          }
-        }
-      }
+      knowledgeBase.push({
+        text: chunk,
+        embedding: embeddingResponse.embedding,
+      });
     }
 
-    await fs.writeFile(outputPath, JSON.stringify(knowledgeBase, null, 2));
-    console.log(`\n✅ Successfully created knowledge base at ${outputPath}`);
-    console.log(`Total chunks processed: ${totalProcessedChunks}`);
+    // 6. Write the output to the JSON file
+    console.log(`Writing knowledge base to: ${outputFilePath}`);
+    await fs.writeFile(outputFilePath, JSON.stringify(knowledgeBase, null, 2));
+
+    console.log('✅ Context processing complete. Knowledge base created successfully!');
 
   } catch (error) {
-    console.error(`Error during context processing:`, error);
-    process.exit(1);
+    console.error('❌ An error occurred during context processing:', error);
+    process.exit(1); // Exit with an error code
   }
 }
 
-processContext();
+// 7. Execute the main function
+processContextFile();
