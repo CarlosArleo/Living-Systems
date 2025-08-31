@@ -55,12 +55,12 @@ export function createPlaceSpecificRetriever(placeId: string) {
   const placeSpecificQuery = knowledgeCollection.where('placeId', '==', placeId);
 
   // CORRECTED: Updated to the modern Genkit API for defineFirestoreRetriever.
-  // The `source` object is removed, and properties like `query`, `contentField`,
-  // and `vectorField` are passed directly to the configuration.
-  return defineFirestoreRetriever({
+  // The function now takes 'ai' as the first parameter, and the configuration
+  // object is structured with top-level properties.
+  return defineFirestoreRetriever(ai, {
     name: `knowledgeRetriever_${placeId}`,
     firestore: db,
-    collection: knowledgeCollection,
+    collection: 'knowledge', // collection name as string
     query: placeSpecificQuery,
     contentField: 'text',
     vectorField: 'embedding',
