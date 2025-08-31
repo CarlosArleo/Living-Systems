@@ -7,7 +7,7 @@
 
 import { ai, googleAI } from '../genkit';
 import {
-  createPlaceSpecificRetriever,
+  createKnowledgeRetriever,
   RagQueryInputSchema,
   RagQueryOutputSchema,
   type RagQueryInput,
@@ -26,15 +26,19 @@ const ragQueryFlow = ai.defineFlow(
   async ({ placeId, query }) => {
     console.log(`[ragQueryFlow] Received query: "${query}" for placeId: "${placeId}"`);
 
-    // 1. Create a retriever dynamically scoped to the specific placeId.
-    const placeRetriever = createPlaceSpecificRetriever(placeId);
+    // 1. Create a generic retriever for the knowledge collection.
+    const knowledgeRetriever = createKnowledgeRetriever();
 
-    // 2. Retrieve relevant documents from Firestore using the place-specific retriever.
+    // 2. Retrieve relevant documents, filtering by placeId in the 'where' option.
+    // This is the modern, correct way to perform scoped retrievals.
     console.log(`[ragQueryFlow] Retrieving documents from knowledge base for place: ${placeId}...`);
     const docs = await ai.retrieve({
-      retriever: placeRetriever,
+      retriever: knowledgeRetriever,
       query: query,
-      options: { k: 5 }, // Get the top 5 most relevant documents
+      options: { 
+        k: 5, // Get the top 5 most relevant documents
+        where: { placeId: placeId }, // Filter documents where placeId matches
+      }, 
     });
 
     // If no documents are found, provide a specific answer.
