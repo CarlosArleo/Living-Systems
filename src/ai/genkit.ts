@@ -2,20 +2,21 @@
  * @fileoverview Central Genkit configuration file.
  * This file configures all plugins and sets project-wide defaults.
  */
+import 'dotenv/config';
 import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
-import { firebase } from '@genkit-ai/firebase/plugin'; // Corrected import path
-import { dotprompt } from '@genkit-ai/dotprompt'; // Corrected import
-import 'dotenv/config';
+import { firebase } from '@genkit-ai/firebase';
+import { dotprompt, Dotprompt } from '@genkit-ai/dotprompt';
 
 export const ai = genkit({
   plugins: [
     googleAI(),
-    firebase(), // Correct initialization
+    firebase({
+      flowStateStore: 'firebase', // Correct placement
+      traceStore: 'firebase',     // Correct placement
+    }),
     dotprompt({ dir: './src/ai/prompts' }),
   ],
-  flowStateStore: 'firebase', // Correct top-level config
-  traceStore: 'firebase',     // Correct top-level config
   logLevel: 'debug',
   enableTracingAndMetrics: true,
 });

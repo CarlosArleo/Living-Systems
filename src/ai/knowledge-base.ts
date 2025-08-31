@@ -5,7 +5,7 @@
  */
 'use server';
 
-import { ai } from '@/ai/genkit';
+import { ai } from './genkit';
 import { googleAI } from '@genkit-ai/googleai';
 import { promises as fs } from 'fs';
 import path from 'path';
@@ -78,7 +78,6 @@ export async function retrieveRelevantContext(
       content: taskDescription,
   });
   
-  // CORRECTED: The embedding is directly on the response object
   const queryEmbedding = embeddingResponse;
 
   if (!queryEmbedding) {
@@ -87,7 +86,6 @@ export async function retrieveRelevantContext(
 
   const similarities = base.map((chunk) => ({
     text: chunk.text,
-    // CORRECTED: Pass the vector directly to the similarity function
     score: cosineSimilarity(queryEmbedding, chunk.embedding),
   }));
 

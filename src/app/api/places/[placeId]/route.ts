@@ -1,3 +1,4 @@
+
 /**
  * @fileOverview API route to fetch a holistic, aggregated summary for a specific place.
  * This route enforces the "Enforce Wholeness" directive by querying multiple collections.
@@ -5,6 +6,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as admin from 'firebase-admin';
 import { getAuth } from 'firebase-admin/auth';
+
+// --- Type Definition ---
+interface AnalyzedDocument {
+  id: string;
+  geoJSON?: string;
+  // Add other properties from your document data as needed for type safety
+  [key: string]: any;
+}
+
 
 // --- Robust Firebase Admin SDK Initialization ---
 if (!admin.apps.length) {
@@ -64,12 +74,11 @@ export async function GET(
     }
 
     // 3. Aggregate the data.
-    const analyzedDocs = analyzedDocsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const analyzedDocs: AnalyzedDocument[] = analyzedDocsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-    // CORRECTED: Extract all GeoJSON strings into a single array for the map.
-    // The 'doc' object from the snapshot has a `data()` method.
+    // Extract all GeoJSON strings into a single array for the map.
     const allGeoJSON = analyzedDocs
-      .map(doc => doc.geoJSON as string)
+      .map(doc => doc.geoJSON)
       .filter(Boolean); // Filter out any undefined/null values
 
     const aggregatedData = {
