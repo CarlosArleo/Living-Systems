@@ -1,7 +1,6 @@
-
 /**
  * @fileOverview API route to fetch a holistic, aggregated summary for a specific place.
- * This route enforces the "Enforce Wholeness" directive by querying multiple capital collections.
+ * This route enforces the "Enforce Wholeness" directive by querying multiple collections.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import * as admin from 'firebase-admin';
@@ -48,23 +47,16 @@ export async function GET(
     // Query 1: The root 'places' document.
     const placeDocPromise = placeDocRef.get();
     
-    // Query 2: The most recent 'natural' capital analysis document.
-    const naturalCapitalQuery = placeDocRef.collection('natural')
-      .orderBy('analyzedAt', 'desc')
-      .limit(1)
-      .get();
-      
-    // Query 3: The most recent 'social' capital analysis document.
-    const socialCapitalQuery = placeDocRef.collection('social')
-      .orderBy('analyzedAt', 'desc')
-      .limit(1)
-      .get();
+    // Query 2: All analyzed documents from the 'documents' subcollection.
+    const analyzedDocsQuery = placeDocRef
+        .collection('documents')
+        .where('status', '==', 'analyzed')
+        .get();
 
     // Execute all queries in parallel for efficiency.
-    const [placeDoc, naturalSnapshot, socialSnapshot] = await Promise.all([
+    const [placeDoc, analyzedDocsSnapshot] = await Promise.all([
       placeDocPromise,
-      naturalCapitalQuery,
-      socialCapitalQuery
+      analyzedDocsQuery
     ]);
 
     if (!placeDoc.exists) {
@@ -72,10 +64,19 @@ export async function GET(
     }
 
     // 3. Aggregate the data.
+    const analyzedDocs = analyzedDocsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    // Extract all GeoJSON strings into a single array for the map.
+    const allGeoJSON = analyzedDocs
+      .map(doc => doc.geoJSON)
+      .filter(Boolean); // Filter out any undefined/null values
+
     const aggregatedData = {
       placeInfo: placeDoc.data(),
-      latestNaturalCapital: naturalSnapshot.empty ? null : naturalSnapshot.docs[0].data(),
-      latestSocialCapital: socialSnapshot.empty ? null : socialSnapshot.docs[0].data(),
+      analyzedDocuments: analyzedDocs,
+      mapData: {
+        geoJSON: allGeoJSON,
+      },
     };
 
     return NextResponse.json(aggregatedData);
