@@ -48,7 +48,8 @@ export async function POST(req: NextRequest) {
     }
     
     // Create a new document ID on the server to pass to the flow
-    const documentId = db.collection('places').doc().id;
+    const docRef = db.collection('places').doc(validation.data.placeId).collection('documents').doc();
+    const documentId = docRef.id;
 
     // IMPORTANT: Asynchronously trigger the full processing flow.
     // We do NOT await the result here. This makes the API return instantly,
@@ -57,7 +58,10 @@ export async function POST(req: NextRequest) {
         ...validation.data,
         uploadedBy: uid,
         documentId: documentId 
-     });
+     }).catch(flowError => {
+        // Log any errors from the background flow execution for debugging
+        console.error(`[Harmonize API] Background flow execution failed for docId ${documentId}:`, flowError);
+    });
 
     // Return an immediate success response to the client.
     return NextResponse.json({ 
