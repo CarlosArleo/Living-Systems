@@ -93,10 +93,11 @@ export const integralAssessmentFlow = ai.defineFlow(
       });
 
       const promptTemplate = await loadPromptTemplate();
+      // FIX: Use the correct Handlebars-style syntax for media URLs in prompts.
       const prompt = promptTemplate
         .replace('{{sourceFile}}', docData.sourceFile || 'Unknown')
         .replace('{{initialCategory}}', docData.initialCapitalCategory || 'Unknown')
-        .replace('{{fileUrl}}', signedUrl);
+        .replace('{{mediaUrl}}', signedUrl);
 
       const result = await ai.generate({
         model: googleAI.model('gemini-1.5-pro'),

@@ -7,7 +7,6 @@ import { z } from 'zod';
 import * as admin from 'firebase-admin';
 import { IndexerInputSchema, KnowledgeSchema, type IndexerInput } from './knowledge-schemas';
 
-
 // Ensure Firebase is initialized only once.
 if (!admin.apps.length) {
   try {
@@ -17,7 +16,6 @@ if (!admin.apps.length) {
   }
 }
 const db = admin.firestore();
-
 
 /**
  * An idempotent flow that takes an array of texts for a specific placeId,
@@ -51,30 +49,35 @@ export const indexerFlow = ai.defineFlow(
     const deletedCount = oldDocsSnapshot.size;
     console.log(`[indexerFlow] Deleted ${deletedCount} old documents.`);
 
-
     if (texts.length === 0) {
       return { indexedCharacters: 0, documentsWritten: 0, documentsDeleted: deletedCount };
     }
 
     // 2. Generate embeddings for the new text chunks.
     console.log(`[indexerFlow] Generating embeddings for ${texts.length} new text chunks.`);
-    const embeddingResponses = await ai.embed({
-      embedder: googleAI.embedder('text-embedding-004'),
-      // CORRECTED: The 'content' property expects an array of objects, 
-      // where each object has a 'text' property.
-      content: texts.map(t => ({text: t})),
+    
+    // CORRECTED: Process each text individually - Genkit's embed expects single strings
+    const embeddingPromises = texts.map(async (text) => {
+      const result = await ai.embed({
+        embedder: googleAI.embedder('text-embedding-004'),
+        content: text, // Single string, not array
+      });
+      return result[0].embedding; // Extract the embedding vector
     });
+    
+    const embeddings = await Promise.all(embeddingPromises);
 
     // 3. Write the new documents to Firestore.
-    console.log(`[indexerFlow] Writing ${embeddingResponses.length} new documents to Firestore...`);
+    console.log(`[indexerFlow] Writing ${embeddings.length} new documents to Firestore...`);
     const writeBatch = db.batch();
     let totalChars = 0;
-    embeddingResponses.forEach((response, i) => {
+    
+    embeddings.forEach((embedding, i) => {
       const docRef = knowledgeCollection.doc();
       const docData: z.infer<typeof KnowledgeSchema> = {
         placeId, // Tag with placeId
         text: texts[i],
-        embedding: response,
+        embedding: embedding, // Direct embedding array
       };
       writeBatch.set(docRef, docData);
       totalChars += texts[i].length;
@@ -85,7 +88,7 @@ export const indexerFlow = ai.defineFlow(
 
     return {
       indexedCharacters: totalChars,
-      documentsWritten: embeddingResponses.length,
+      documentsWritten: embeddings.length,
       documentsDeleted: deletedCount,
     };
   }

@@ -27,6 +27,23 @@ export const critiqueCode = ai.defineFlow(
     outputSchema: z.string().describe('A structured Markdown report of the audit findings.'),
   },
   async ({ codeToCritique, projectConstitution }: CritiqueInput) => {
+    // FIX: Add a guard clause to handle empty or whitespace-only code input.
+    if (!codeToCritique || codeToCritique.trim() === '') {
+      return `
+### Code Audit Report
+
+**1. Issues Found:**
+- No code was provided to critique.
+
+**2. Suggested Improvements:**
+- Please provide the code that needs to be audited.
+
+**3. Verdict:**
+FAIL
+      `;
+    }
+
+
     // This is the Critique-Bot Playbook prompt
     const prompt = `
       You are an expert, hyper-critical code auditor and security analyst. Your sole purpose is to review the provided code and identify any and all flaws, weaknesses, and deviations from best practices. You are meticulous and unforgiving. Your analysis must be grounded in the standards and principles defined in the project's CONSTITUTION, which is the ultimate source of truth.

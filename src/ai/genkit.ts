@@ -3,9 +3,12 @@
  */
 import 'dotenv/config';
 import { genkit, type GenkitOptions } from 'genkit';
-// CORRECTED: Import the 'firebase' plugin function as a named export.
-import { firebase } from '@genkit-ai/firebase';
+// CORRECTED: Enable Firebase telemetry separately - there's no firebase plugin function
+import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
 import { googleAI } from '@genkit-ai/googleai';
+
+// Enable Firebase telemetry for monitoring
+enableFirebaseTelemetry();
 
 // This is the only file that should configure the main `ai` instance.
 // Its only export should be `ai`.
@@ -13,8 +16,7 @@ import { googleAI } from '@genkit-ai/googleai';
 const genkitConfig: GenkitOptions = {
   plugins: [
     googleAI(),
-    // CORRECTED: Call the imported 'firebase' function directly.
-    firebase(),
+    // Note: Firebase telemetry is enabled above, not as a plugin
   ],
 };
 
