@@ -5,9 +5,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "genkit:dev": "genkit start",
+    "genkit:dev": "genkit start -- tsx --env-file=.env src/ai/dev.ts",
     "genkit:watch": "genkit start --watch",
     "build:context": "tsx --env-file=.env scripts/process-context.ts",
+    "setup": "npm run build:context",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
