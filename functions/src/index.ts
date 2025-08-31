@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Main entry point for all Cloud Functions for the RDI Platform.
  * This file implements the event-driven triggers for the AI analysis pipeline.
@@ -8,7 +7,7 @@ import { onObjectFinalized } from "firebase-functions/v2/storage";
 import * as logger from "firebase-functions/logger";
 import { initializeApp } from "firebase-admin/app";
 import { run } from "@genkit-ai/firebase";
-import { integralAssessmentFlow } from "./flows/integralAssessment";
+import { integralAssessmentFlow } from "./flows/integralAssessment"; // CORRECTED: Import the actual flow.
 
 // Initialize Firebase Admin SDK
 initializeApp();
@@ -20,19 +19,20 @@ initializeApp();
  */
 export const triggerIntegralAssessment = onObjectFinalized(
   {
-    // 1. Trigger Type and Configuration
-    bucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "",
-    // Listen for files created within the 'uploads' folder for any user and place.
-    // Example path: /uploads/{userId}/{placeId}/{timestamp}_{fileName}
+    bucket: process.env.GCLOUD_PROJECT! + ".appspot.com",
     cpu: 2, // Allocate more CPU for potential AI processing
   },
   async (event) => {
     const fileBucket = event.bucket;
     const filePath = event.data.name;
 
-    // Log the event context for security and debugging
     logger.info(`[triggerIntegralAssessment] New file detected: ${filePath} in bucket: ${fileBucket}`);
-    logger.log("Event context:", event);
+
+    // Ensure the function only triggers for files in the correct directory.
+    if (!filePath.startsWith('uploads/')) {
+        logger.log(`File path ${filePath} is not in 'uploads/' directory. Skipping.`);
+        return;
+    }
 
     // Ensure the function doesn't re-trigger on metadata updates
     if (event.data.resourceState === 'not_exists') {
@@ -45,11 +45,9 @@ export const triggerIntegralAssessment = onObjectFinalized(
     }
 
     // Extract placeId and docId from the file path.
-    // Example path: uploads/{userId}/{placeId}/{docId}/{fileName}
-    // We will assume a structure that can be parsed.
-    // NOTE: This parsing logic MUST match the client-side upload logic.
+    // Expected path: uploads/{userId}/{placeId}/{docId}/{fileName}
     const pathParts = filePath.split('/');
-    if (pathParts.length < 4 || pathParts[0] !== 'uploads') {
+    if (pathParts.length < 5) {
       logger.warn(`File path ${filePath} does not match expected structure 'uploads/{userId}/{placeId}/{docId}/{fileName}'. Skipping.`);
       return;
     }
@@ -57,11 +55,11 @@ export const triggerIntegralAssessment = onObjectFinalized(
     const docId = pathParts[3];
 
     try {
-      // 2. Flow Invocation
       logger.log(`Invoking integralAssessmentFlow for place: ${placeId}, doc: ${docId}`);
       
       // Use the Genkit 'run' utility to securely call the flow.
       // This automatically handles authentication and context passing.
+      // The flow itself will handle getting a signedURL and doing the analysis.
       const result = await run(integralAssessmentFlow, {
         placeId: placeId,
         documentId: docId,
@@ -71,7 +69,6 @@ export const triggerIntegralAssessment = onObjectFinalized(
       logger.info(`[triggerIntegralAssessment] Successfully invoked flow. Result:`, result);
 
     } catch (error) {
-      // 4. Error Handling
       logger.error(`[triggerIntegralAssessment] Failed to invoke integralAssessmentFlow for ${filePath}.`, {
         error,
         placeId,
