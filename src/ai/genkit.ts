@@ -1,5 +1,5 @@
-// src/ai/genkit.ts
 
+// src/ai/genkit.ts
 import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
 // FINAL CORRECTION: Use the correct NAMED import for version 1.17.x
@@ -11,12 +11,7 @@ export const ai = genkit({
   plugins: [
     googleAI(),
     // FINAL CORRECTION: Call the named import directly as a function.
-    firebase({
-      projectId: process.env.GCLOUD_PROJECT,
-      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-      flowStateStore: 'firebase', // Best practice for persisting flow states
-      traceStore: 'firebase',     // Best practice for persisting traces
-    }),
+    firebase(),
   ],
   model: googleAI.model('gemini-1.5-pro'), // Set a default model for convenience
 });
