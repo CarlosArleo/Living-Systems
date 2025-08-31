@@ -9,20 +9,6 @@ import { retrieveRelevantContext } from '../src/ai/knowledge-base';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
-/**
- * A helper function to parse the verdict from the critique report.
- * @param report The Markdown report from the critique agent.
- * @returns 'PASS' or 'FAIL'.
- */
-function parseVerdict(report: string): 'PASS' | 'FAIL' {
-    const match = report.match(/\*\*3\. Verdict:\*\*\s*(PASS|FAIL)/i);
-    if (match && match[1]) {
-        return match[1].toUpperCase() as 'PASS' | 'FAIL';
-    }
-    console.warn("[Orchestrator] Could not parse verdict from critique report. Defaulting to FAIL.");
-    return 'FAIL';
-}
-
 
 /**
  * The main function for the Orchestrator Agent.
@@ -37,32 +23,37 @@ async function runDevelopmentCycle(taskDescription: string, outputFilePath: stri
   for (let attempt = 1; attempt <= 3; attempt++) {
     console.log(`\n[Orchestrator] Attempt #${attempt}`);
 
-    if (verdict === 'FAIL') {
-        const relevantContext = await retrieveRelevantContext(taskDescription);
-        console.log(`[Orchestrator] Retrieved ${relevantContext.length} context chunks.`);
-
-        console.log('[Orchestrator] Calling Generator Agent...');
-        currentCode = await generateCode({
-            taskDescription,
-            context: relevantContext,
-            // On subsequent attempts, pass the failed code and critique
-            ...(currentCode && auditReport && { failedCode: currentCode, critique: auditReport }),
-        });
-
-        if (!currentCode) {
-            console.error('[Orchestrator] Generator Agent failed to produce code.');
-            continue; // Try again
-        }
-        console.log('[Orchestrator] Code generated. Submitting for critique...');
-    }
-
-    const projectConstitution = await fs.readFile(path.join(process.cwd(), 'CONTEXT.md'), 'utf-8');
-    auditReport = await critiqueCode({
-        codeToCritique: currentCode!,
-        projectConstitution: projectConstitution,
+    // Step 1: Generate or Correct Code
+    const relevantContextChunks = await retrieveRelevantContext(taskDescription);
+    const relevantContext = relevantContextChunks.join('\n---\n');
+    console.log(`[Orchestrator] Retrieved ${relevantContextChunks.length} context chunks.`);
+    
+    console.log('[Orchestrator] Calling Generator Agent...');
+    currentCode = await generateCode({
+        taskDescription,
+        context: relevantContext,
+        // On subsequent attempts, pass the failed code and critique
+        ...(currentCode && auditReport && { failedCode: currentCode, auditReport: auditReport }),
     });
 
-    verdict = parseVerdict(auditReport);
+    if (!currentCode) {
+        console.error('[Orchestrator] Generator Agent failed to produce code.');
+        continue; // Try again
+    }
+    console.log('[Orchestrator] Code generated. Submitting for critique...');
+
+    // Step 2: Critique the generated code
+    const projectConstitution = await fs.readFile(path.join(process.cwd(), 'CONTEXT.md'), 'utf-8');
+    
+    // CORRECTED: Call critiqueCode with the right parameters and handle the object response.
+    const critiqueResult = await critiqueCode({
+      code: currentCode,
+      context: projectConstitution,
+    });
+
+    verdict = critiqueResult.verdict as 'PASS' | 'FAIL';
+    auditReport = critiqueResult.issuesFound;
+    
     console.log(`[Orchestrator] Critique Verdict: ${verdict}`);
     
     if (verdict === 'PASS') {
