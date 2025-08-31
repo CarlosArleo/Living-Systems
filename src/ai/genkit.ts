@@ -3,7 +3,8 @@
  */
 import 'dotenv/config';
 import { genkit, type GenkitOptions } from 'genkit';
-import { firebase } from '@genkit-ai/firebase';
+// CORRECTED: Use a default import for the firebase plugin.
+import firebase from '@genkit-ai/firebase';
 import { googleAI } from '@genkit-ai/googleai';
 
 // This is the only file that should configure the main `ai` instance.
@@ -25,11 +26,7 @@ const genkitConfig: GenkitOptions = {
         collection: 'cache',
       },
     }),
-    // Dotprompt is not a plugin that needs to be configured here.
-    // The Genkit CLI automatically discovers prompts in the specified directory.
   ],
-  // logLevel and enableTracingAndMetrics are not top-level options in this version.
-  // Tracing is enabled by configuring the traceStore in the firebase plugin.
 };
 
 export const ai = genkit(genkitConfig);
