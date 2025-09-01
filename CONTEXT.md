@@ -58,6 +58,14 @@ The system is a **Decoupled Full-Stack Application**. The frontend (Next.js) is 
 - **Path:** `system_health/{issueId}` (Root-level collection)
 - **Purpose:** To store records of KPI violations detected by the Monitor Agent.
 - **Schema:** `{ metric: string, threshold: number, measuredValue: number, resourceName: string, timestamp: Timestamp }`
+*   **User Collection Schema:**
+- **Path:** `users/{userId}`
+- **Purpose:** To store public profile information and application-specific metadata for each user.
+- **Schema:**
+  - `email`: (string) The user's email address (for reference).
+  - `displayName`: (string) The user's public display name.
+  - `role`: (string) The user's role in the system (e.g., 'practitioner', 'community_member', 'admin').
+  - `createdAt`: (Timestamp) The timestamp of the user's creation.
 
 #### **Table 1: Firestore Data Modeling Strategies (Decision Matrix)**
 
