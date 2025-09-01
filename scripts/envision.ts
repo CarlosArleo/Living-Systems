@@ -3,7 +3,7 @@
  * This script allows an architect to ask strategic questions of the codebase.
  */
 import { runFlow } from 'genkit/flow';
-import { getCodebaseContext } from '../src/ai/vision/code-retriever'; // We will create this next
+import { getCodebaseContext } from '../src/ai/vision/code-retriever';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 
@@ -18,12 +18,12 @@ async function envision(question: string) {
     console.log('[Envision Agent] Retrieving relevant code context...');
     const codebaseContext = await getCodebaseContext(question);
 
-    if (!codebaseContext) {
+    if (!codebaseContext || codebaseContext.trim() === '') {
       console.error('❌ [Envision Agent] Failed to retrieve any relevant code context. Aborting.');
       return;
     }
 
-    // Step 2: Call the Genkit flow with the question and the *relevant* context.
+    // Step 2: Call the Genkit flow with the question and the relevant context.
     console.log('[Envision Agent] Calling the envisionNewFeature flow...');
     const proposal = await runFlow('envisionNewFeature', {
       question,
