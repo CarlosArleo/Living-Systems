@@ -23,7 +23,7 @@ async function runHealthChecks() {
   try {
     // --- Define the resources to monitor ---
     const functionsToMonitor = [
-      'triggerDocumentAnalysisOnUpload', // The name of our trigger function
+      'triggerDocumentAnalysisOnUpload', // CORRECTED: This now matches the function name in functions/src/index.ts
       // In the future, you would add the names of your Genkit flow HTTP endpoints here
     ];
 
