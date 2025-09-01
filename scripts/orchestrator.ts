@@ -152,3 +152,4 @@ if (!taskOrFilePath) {
 runDevelopmentCycle(taskOrFilePath, outputFilePath).catch(err => {
     console.error('[Orchestrator] A fatal, unhandled exception occurred:', err);
     process.exit(1);
+});
