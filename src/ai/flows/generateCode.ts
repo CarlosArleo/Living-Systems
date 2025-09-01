@@ -36,6 +36,11 @@ type FlowInput = z.infer<typeof FlowInputSchema>;
 function extractCodeFromResponse(responseText: string, isCorrection: boolean): string {
   // For initial generation, the entire response is the code.
   if (!isCorrection) {
+    // Also handle cases where the generation might be wrapped in backticks
+    const match = responseText.match(/```(?:typescript|tsx?|javascript|js)?\s*\n([\s\S]+?)\n```/);
+    if (match && match[1]) {
+      return match[1].trim();
+    }
     return responseText.trim();
   }
 
@@ -186,7 +191,7 @@ BEGIN CORRECTION PROTOCOL NOW.
       }
       
       if (
-        extractedCode.length < 50 ||
+        extractedCode.length < 50 &&
         (!extractedCode.includes('import') &&
           !extractedCode.includes('function') &&
           !extractedCode.includes('const'))
@@ -200,5 +205,3 @@ BEGIN CORRECTION PROTOCOL NOW.
     return extractedCode;
   }
 );
-
-    
