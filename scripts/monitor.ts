@@ -3,8 +3,10 @@
  * This script runs periodically to check the health of the RDI Platform.
  */
 import * as admin from 'firebase-admin';
-import { projectConfig } from '@/ai/config'; // Use path alias
-import { checkFunctionLatency } from '@/ai/monitoring/latency'; // Use path alias
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import { projectConfig } from '@/ai/config';
+import { checkFunctionLatency } from '@/ai/monitoring/latency';
 
 // Initialize Firebase Admin SDK ONLY ONCE.
 if (!admin.apps.length) {
@@ -14,6 +16,33 @@ if (!admin.apps.length) {
 }
 const db = admin.firestore();
 
+
+/**
+ * Dynamically discovers the names of all exported Cloud Functions.
+ * This makes the monitoring script resilient to function renames or additions.
+ * @returns A promise that resolves to an array of function names.
+ */
+async function discoverFunctionNames(): Promise<string[]> {
+    console.log('[Monitor] Discovering Cloud Functions to monitor...');
+    const functionsIndexPath = path.join(process.cwd(), 'functions', 'src', 'index.ts');
+    try {
+        const content = await fs.readFile(functionsIndexPath, 'utf-8');
+        // Regex to find all exported constants (our functions)
+        const exportRegex = /export const (\w+)/g;
+        const names = [];
+        let match;
+        while ((match = exportRegex.exec(content)) !== null) {
+            names.push(match[1]);
+        }
+        console.log(`[Monitor] Found functions: ${names.join(', ')}`);
+        return names;
+    } catch (error) {
+        console.error(`[Monitor] Failed to read or parse ${functionsIndexPath}. Please ensure the file exists.`);
+        return [];
+    }
+}
+
+
 /**
  * The main function for the Monitor Agent.
  */
@@ -21,20 +50,18 @@ async function runHealthChecks() {
   console.log('[Monitor] Starting system health checks...');
 
   try {
-    // --- Define the resources to monitor ---
-    const functionsToMonitor = [
-      'triggerDocumentAnalysisOnUpload', // CORRECTED: This now matches the function name in functions/src/index.ts
-      // In the future, you would add the names of your Genkit flow HTTP endpoints here
-    ];
+    const functionsToMonitor = await discoverFunctionNames();
 
-    // 1. Check Function Latency (using our perfected engine)
+    if (functionsToMonitor.length === 0) {
+        console.warn('[Monitor] No Cloud Functions found to monitor. Exiting.');
+        return;
+    }
+
     const latencyViolations = await checkFunctionLatency(
       functionsToMonitor,
       projectConfig.projectId,
       800 // Using the 800ms threshold from our CONSTITUTION
     );
-
-    // 2. (Future) Check Error Rates...
 
     const allViolations = [...latencyViolations];
 
@@ -61,5 +88,4 @@ async function runHealthChecks() {
   }
 }
 
-// Execute the main function
 runHealthChecks();
