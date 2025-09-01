@@ -75,6 +75,6 @@ This flow has two distinct modes to test.
     "Guideline: All functions must include JSDoc comments explaining what they do."
   ],
   "failedCode": "function add(a, b) { return a + b; }",
-  "critique": "### Code Audit Report\\n\\n**1. Issues Found:**\\n- The function is missing TypeScript type annotations for its parameters and return value.\\n- The function lacks the required JSDoc comment block.\\n\\n**3. Verdict:**\\nFAIL"
+  "critique": "### Code Audit Report\n\n**1. Material Issues Found:**\n- The function is missing TypeScript type annotations for its parameters and return value.\n- The function lacks the required JSDoc comment block.\n\n**3. Verdict:**\nFAIL"
 }
 ```
