@@ -9,6 +9,11 @@ import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { logger } from "firebase-functions";
 import * as admin from "firebase-admin";
 
+// Since Genkit flows are now part of the Next.js app, we can't directly
+// import them here. The correct architectural pattern is for this Cloud Function
+// to make a secure, authenticated HTTP request to the Next.js API endpoint
+// that exposes the Genkit flow.
+
 // Initialize Firebase Admin SDK if it hasn't been already.
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -17,7 +22,7 @@ if (!admin.apps.length) {
 /**
  * A Cloud Function that triggers when a new file is uploaded to Cloud Storage.
  * Its sole purpose is to validate the event and securely invoke the
- * `/api/analyze` endpoint in our Next.js application.
+ * `/api/analyze` endpoint in our Next.js application, which in turn runs the Genkit flow.
  */
 export const triggerDocumentAnalysisOnUpload = onObjectFinalized(
   {
@@ -28,11 +33,11 @@ export const triggerDocumentAnalysisOnUpload = onObjectFinalized(
   },
   async (event) => {
     const filePath = event.data.name;
-
     logger.info(`[triggerDocumentAnalysis] Event received for file: ${filePath}`);
 
     // 1. Idempotency Check: Exit if this is a metadata-only update.
-    if (event.data.metageneration !== "1") {
+    // THE FIX: Compare against the number 1, not the string "1".
+    if (event.data.metageneration !== 1) {
       logger.log(`[triggerDocumentAnalysis] Ignoring metadata update for ${filePath}.`);
       return;
     }
@@ -47,12 +52,12 @@ export const triggerDocumentAnalysisOnUpload = onObjectFinalized(
       return;
     }
     
-    // The regex captures these parts from the path
     const [, userId, placeId, docId, fileName] = match;
 
-    // 7. Simplicity and Separation of Concerns: This function only triggers the flow.
     try {
       // 4. Flow Invocation: The target is the Next.js app's API route.
+      // THE FIX: This architecture is now correct. The Cloud Function's job is to
+      // securely call the API endpoint that wraps the Genkit flow.
       const nextJsAppUrl = process.env.NEXT_JS_APP_URL;
       if (!nextJsAppUrl) {
           throw new Error("NEXT_JS_APP_URL environment variable is not set.");
@@ -65,11 +70,9 @@ export const triggerDocumentAnalysisOnUpload = onObjectFinalized(
       const auth = new GoogleAuth();
       const client = await auth.getIdTokenClient(analysisEndpoint);
       
-      // 6. Data Passing: Construct the request body for the `/api/analyze` route.
       const requestBody = {
         placeId,
         docId,
-        // Although not strictly needed by the API, passing for completeness
         storagePath: filePath,
         fileName,
         uploadedBy: userId,
@@ -97,10 +100,9 @@ export const triggerDocumentAnalysisOnUpload = onObjectFinalized(
       await docRef.set({
         status: 'failed',
         error: error instanceof Error ? error.message : 'Unknown error during trigger.',
-        analysisTriggerError: true, // Add a specific flag for debugging
+        analysisTriggerError: true,
       }, { merge: true });
       
-      // Re-throw the error to ensure the function is marked as failed for monitoring.
       throw error;
     }
   }
@@ -119,7 +121,6 @@ export const triggerProactiveRefactor = onDocumentCreated(
     try {
       const issueData = event.data?.data();
 
-      // Type guard to ensure we have the data we need.
       if (!issueData || typeof issueData.metric !== 'string' || typeof issueData.resourceName !== 'string') {
         logger.warn("[Proactive Refactor] Document is missing required fields (metric, resourceName). Skipping.");
         return;
@@ -127,10 +128,8 @@ export const triggerProactiveRefactor = onDocumentCreated(
       
       const { metric, threshold, measuredValue, resourceName } = issueData;
 
-      // Dynamically generate the task description for the orchestrator.
       const taskDescription = `Refactor the code at '${resourceName}' to fix a performance bottleneck. The '${metric}' is ${measuredValue}, which violates the constitutional limit of ${threshold}. Analyze the code for inefficient patterns and generate a more performant version.`;
       
-      // Log the command for the human-in-the-loop to execute.
       const commandToRun = `npx tsx scripts/orchestrator.ts "${taskDescription}" "${resourceName}"`;
       
       logger.info(
