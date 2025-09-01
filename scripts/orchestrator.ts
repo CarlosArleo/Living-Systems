@@ -52,6 +52,14 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
     if (attempt === 1 && !isAuditMode) {
         const relevantContextChunks = await retrieveRelevantContext(taskDescription);
         console.log(`[Orchestrator] Retrieved ${relevantContextChunks.length} context chunks for initial generation.`);
+        
+        // DEBUG LOGGING: Log retrieved context
+        console.log('\n--- [DEBUG] CONTEXT RETRIEVED ---');
+        relevantContextChunks.forEach((chunk, i) => {
+            console.log(`Chunk ${i + 1}: ${chunk.substring(0, 100).replace(/\n/g, ' ')}...`);
+        });
+        console.log('---------------------------------\n');
+
         console.log('[Orchestrator] Calling Generator Agent for first draft...');
         currentCode = await generateCode({ taskDescription, context: relevantContextChunks });
     }
@@ -81,9 +89,42 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
     } else {
         console.log('[Orchestrator] ❌ Code failed audit. Preparing for correction loop...');
         console.log('Issues Found:\n', auditReport);
-        // Correct the code for the next iteration
+        
         const relevantContextChunks = await retrieveRelevantContext(taskDescription);
-        console.log(`[Orchestrator] Retrieved ${relevantContextChunks.length} context chunks for correction.`);
+        
+        // DEBUG LOGGING: Log the exact correction prompt
+        const correctionPromptForLogging = `
+        You are an expert software engineer. The previous code you generated failed its quality and security audit.
+        Your task is to rewrite the code to address every issue identified in the audit report below.
+        You must not introduce any new functionality or deviate from the original requirements.
+        The rewritten code must be of the highest quality and designed to pass the audit.
+
+        ORIGINAL TASK:
+        ---
+        ${taskDescription}
+        ---
+        
+        RELEVANT CONTEXT FROM KNOWLEDGE BASE:
+        ---
+        ${relevantContextChunks.join('\n---\n')}
+        ---
+
+        FAILED CODE:
+        ---
+        ${currentCode}
+        ---
+
+        AUDIT REPORT:
+        ---
+        ${auditReport}
+        ---
+
+        Now, provide the corrected and improved version of the code. Only output the raw code, with no explanations or markdown.
+      `;
+        console.log('\n--- [DEBUG] CORRECTION PROMPT ---');
+        console.log(correctionPromptForLogging);
+        console.log('---------------------------------\n');
+        
         currentCode = await generateCode({
             taskDescription,
             context: relevantContextChunks,
@@ -94,7 +135,12 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
   }
 
   if (verdict === 'PASS' && currentCode) {
-    console.log(`\n[Orchestrator] Writing final, audited code to ${outputFilePath}`);
+    // DEBUG LOGGING: Log the final passing code
+    console.log('\n--- [DEBUG] FINAL PASSING CODE ---');
+    console.log(currentCode);
+    console.log('----------------------------------\n');
+    
+    console.log(`[Orchestrator] Writing final, audited code to ${outputFilePath}`);
     await fs.writeFile(outputFilePath!, currentCode);
     console.log('[Orchestrator] ✅ Development cycle complete.');
   } else {
@@ -115,5 +161,3 @@ if (!argument) {
 }
 
 runDevelopmentCycle(argument, outputFile);
-
-    
