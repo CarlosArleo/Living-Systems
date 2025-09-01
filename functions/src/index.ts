@@ -5,6 +5,7 @@
  */
 
 import { onObjectFinalized } from "firebase-functions/v2/storage";
+import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { logger } from "firebase-functions";
 import * as admin from "firebase-admin";
 
@@ -101,6 +102,49 @@ export const triggerDocumentAnalysisOnUpload = onObjectFinalized(
       
       // Re-throw the error to ensure the function is marked as failed for monitoring.
       throw error;
+    }
+  }
+);
+
+
+/**
+ * The "Immune System" for the RDI Platform.
+ * Triggers when a health issue is logged by the Monitor Agent. It constructs
+ * a task for the Orchestrator Agent to attempt a self-healing refactor.
+ */
+export const triggerProactiveRefactor = onDocumentCreated(
+  "system_health/{issueId}",
+  (event) => {
+    logger.info(`[Proactive Refactor] New system health issue detected: ${event.params.issueId}`);
+    try {
+      const issueData = event.data?.data();
+
+      // Type guard to ensure we have the data we need.
+      if (!issueData || typeof issueData.metric !== 'string' || typeof issueData.resourceName !== 'string') {
+        logger.warn("[Proactive Refactor] Document is missing required fields (metric, resourceName). Skipping.");
+        return;
+      }
+      
+      const { metric, threshold, measuredValue, resourceName } = issueData;
+
+      // Dynamically generate the task description for the orchestrator.
+      const taskDescription = `Refactor the code at '${resourceName}' to fix a performance bottleneck. The '${metric}' is ${measuredValue}, which violates the constitutional limit of ${threshold}. Analyze the code for inefficient patterns and generate a more performant version.`;
+      
+      // Log the command for the human-in-the-loop to execute.
+      const commandToRun = `npx tsx scripts/orchestrator.ts "${taskDescription}" "${resourceName}"`;
+      
+      logger.info(
+        "[Proactive Refactor] A task has been generated for the Orchestrator Agent. To attempt an automatic fix, run the following command:",
+        {
+          issueId: event.params.issueId,
+          detectedMetric: metric,
+          violatingResource: resourceName,
+          suggestedCommand: commandToRun,
+        }
+      );
+
+    } catch (error) {
+      logger.error(`[Proactive Refactor] Failed to process health issue ${event.params.issueId}.`, { error });
     }
   }
 );
