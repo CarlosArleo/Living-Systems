@@ -42,8 +42,8 @@ FAIL
       `;
     }
 
-    // This is the Critique-Bot Playbook prompt, now tuned for pragmatism.
-    const prompt = `
+    // Renamed from 'prompt' to 'critiquePrompt' to avoid conflict with global DOM types.
+    const critiquePrompt = `
       You are an expert, hyper-critical but pragmatic code auditor and security analyst. Your sole purpose is to review the provided code and identify any and all flaws, weaknesses, and deviations from best practices.
 
       IMPORTANT: Your primary goal is to find MATERIAL flaws. A material flaw is one that:
@@ -86,7 +86,7 @@ FAIL
 
     const llmResponse = await ai.generate({
       model: googleAI.model('gemini-1.5-pro'),
-      prompt: prompt,
+      prompt: critiquePrompt,
       output: { format: 'text' },
       config: { temperature: 0.0 }, // Zero temperature for objective, fact-based critique
     });

@@ -37,6 +37,7 @@ import { PlaceDetailView } from './place-detail-view';
 import { UserProfile } from './user-profile';
 import { UploadDialog } from './upload-dialog';
 
+// Corrected Type Definition for Place
 type Place = {
   id: string;
   name: string;
