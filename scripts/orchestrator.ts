@@ -1,14 +1,13 @@
 /**
  * @fileOverview The main orchestrator script for the autonomous development cycle.
- * This script can either:
- * 1. Generate new code from a task description.
- * 2. Audit and correct an existing file.
- * It now features a robust journaling system to log every step of the process.
+ * This script now uses specialized agents for generation and correction.
  */
 import 'dotenv/config';
 'use server';
 
+// UPDATED: Import both agents
 import { generateCode } from '../src/ai/flows/generateCode';
+import { correctCode } from '../src/ai/flows/correctCode'; 
 import { critiqueCode } from '../src/ai/flows/critiqueCode';
 import { retrieveRelevantContext } from '../src/ai/knowledge-base';
 import * as fs from 'fs/promises';
@@ -20,11 +19,7 @@ import * as path from 'path';
  * @returns A sanitized string.
  */
 function sanitizeForFilename(text: string): string {
-    return text
-        .toLowerCase()
-        .replace(/\s+/g, '-') // Replace spaces with hyphens
-        .replace(/[^a-z0-9-]/g, '') // Remove non-alphanumeric characters except hyphens
-        .slice(0, 50); // Truncate to a reasonable length
+    return text.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').slice(0, 50);
 }
 
 /**
@@ -36,14 +31,11 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
   // --- Journaling Setup ---
   const logDir = path.join(process.cwd(), 'logs', 'orchestrator');
   await fs.mkdir(logDir, { recursive: true });
-  
   const timestamp = new Date().toISOString().replace(/:/g, '-').replace(/\..+/, '');
   const sanitizedTask = sanitizeForFilename(taskOrFilePath);
   const logFileName = `${timestamp}-${sanitizedTask}.md`;
   const logFilePath = path.join(logDir, logFileName);
-  
   const appendToJournal = (content: string) => fs.appendFile(logFilePath, content + '\n\n');
-  
   await appendToJournal(`# Orchestrator Run Log: ${new Date().toLocaleString()}`);
 
   let initialCode: string | undefined;
@@ -51,14 +43,11 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
   const isAuditMode = await fs.stat(taskOrFilePath).then(s => s.isFile()).catch(() => false);
   const projectConstitution = await fs.readFile(path.join(process.cwd(), 'CONTEXT.md'), 'utf-8');
 
-
   if (isAuditMode) {
     taskDescription = `Audit and correct the following code file: ${taskOrFilePath}`;
     console.log(`[Orchestrator] Starting in "Audit & Correct" mode for file: ${taskOrFilePath}`);
     initialCode = await fs.readFile(taskOrFilePath, 'utf-8');
-    if (!outputFilePath) {
-      outputFilePath = taskOrFilePath;
-    }
+    if (!outputFilePath) outputFilePath = taskOrFilePath;
   } else {
     taskDescription = taskOrFilePath;
     console.log(`[Orchestrator] Starting in "Generate" mode for task: "${taskDescription}"`);
@@ -78,42 +67,31 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
     console.log(`\n[Orchestrator] Attempt #${attempt}`);
     await appendToJournal(`## Attempt #${attempt}`);
 
-    // This is the core logic for the Generate -> Critique -> Correct loop
     if (attempt === 1 && !isAuditMode) {
         // --- INITIAL GENERATION ---
-        const relevantContextChunks = await retrieveRelevantContext(taskDescription);
-        console.log(`[Orchestrator] Retrieved ${relevantContextChunks.length} context chunks for initial generation.`);
-        await appendToJournal(`### Retrieved Context (RAG)\n\n${relevantContextChunks.map((c, i) => `**Chunk ${i+1}:**\n\`\`\`\n${c}\n\`\`\``).join('\n\n')}`);
-        
         console.log('[Orchestrator] Calling Generator Agent for first draft...');
+        const relevantContextChunks = await retrieveRelevantContext(taskDescription);
+        await appendToJournal(`### Retrieved Context (RAG)\n\n${relevantContextChunks.map((c, i) => `**Chunk ${i+1}:**\n\`\`\`\n${c}\n\`\`\``).join('\n\n')}`);
         currentCode = await generateCode({ taskDescription, context: relevantContextChunks });
         await appendToJournal(`### Generated Code (Attempt #${attempt})\n\n\`\`\`typescript\n${currentCode}\n\`\`\``);
 
     } else if (currentCode && auditReport) {
-        // --- CORRECTION ATTEMPT ---
-        console.log('[Orchestrator] Calling Generator Agent for correction...');
-        
-        const correctionContext = [projectConstitution];
-        
-        const correctedCode = await generateCode({
-            taskDescription,
-            context: correctionContext,
+        // --- CORRECTION ---
+        // UPDATED: Call the new, specialized correctCode agent
+        console.log('[Orchestrator] Calling Debugging Agent for correction...');
+        currentCode = await correctCode({
             failedCode: currentCode,
             critique: auditReport,
+            originalTask: taskDescription
         });
-        
-        // Ensure the currentCode is updated for the next critique
-        currentCode = correctedCode;
-
         await appendToJournal(`### Corrected Code (Attempt #${attempt})\n\n\`\`\`typescript\n${currentCode}\n\`\`\``);
     }
 
-
-    if (!currentCode) {
-        const errorMsg = '[Orchestrator] No code available to critique. Aborting.';
-        console.error(errorMsg);
-        await appendToJournal(`## Final Outcome\n\n**STATUS:** ❌ FAIL\n**REASON:** ${errorMsg}`);
-        return;
+    if (!currentCode || currentCode.trim() === '') {
+      const errorMsg = '[Orchestrator] Agent returned no code. Aborting.';
+      console.error(errorMsg);
+      await appendToJournal(`## Final Outcome\n\n**STATUS:** ❌ FAIL\n**REASON:** ${errorMsg}`);
+      return;
     }
 
     console.log('[Orchestrator] Submitting code for critique...');
@@ -130,7 +108,6 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
     
     console.log(`[Orchestrator] Critique Verdict: ${verdict}`);
     
-    // FIX #2: Immediately break the loop on a PASS verdict.
     if (verdict === 'PASS') {
         console.log('[Orchestrator] ✅ Code has passed the audit!');
         break; 
@@ -172,4 +149,6 @@ if (!taskOrFilePath) {
   process.exit(1);
 }
 
-runDevelopmentCycle(taskOrFilePath, outputFilePath);
+runDevelopmentCycle(taskOrFilePath, outputFilePath).catch(err => {
+    console.error('[Orchestrator] A fatal, unhandled exception occurred:', err);
+    process.exit(1);

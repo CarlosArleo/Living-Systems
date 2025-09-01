@@ -6,6 +6,7 @@
 
 // Core orchestrator flows - use specific exports to avoid conflicts
 export { generateCode } from './generateCode';
+export { correctCode } from './correctCode'; // NEW: Export the debugging agent
 export { critiqueCode } from './critiqueCode';
 export { embedText } from './embed';
 
