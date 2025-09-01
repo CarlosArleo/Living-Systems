@@ -27,48 +27,61 @@ const FlowInputSchema = z.union([GenerateCodeInputSchema, CorrectCodeInputSchema
 type FlowInput = z.infer<typeof FlowInputSchema>;
 
 /**
- * Robust function to extract code from LLM response, handling various formatting inconsistencies
+ * Robust function to extract code from LLM response, handling various formatting inconsistencies.
+ * This is the upgraded, more resilient version.
+ * @param responseText The full text output from the LLM.
+ * @param isCorrection A boolean indicating if this is a correction attempt.
+ * @returns The cleaned, extracted code string.
  */
 function extractCodeFromResponse(responseText: string, isCorrection: boolean): string {
+  // For initial generation, the entire response is the code.
   if (!isCorrection) {
     return responseText.trim();
   }
 
+  // For corrections, the model provides analysis headers. We must find the code block.
   const patterns = [
+    // Standard pattern with or without language specifier
     /###\s*CORRECTED CODE:\s*```(?:typescript|tsx?|javascript|js)?\s*\n([\s\S]+?)\n```/i,
+    // Variations in header casing or spacing
     /##\s*CORRECTED CODE:\s*```(?:typescript|tsx?|javascript|js)?\s*\n([\s\S]+?)\n```/i,
-    /###\s*Corrected Code:\s*```(?:typescript|tsx?|javascript|js)?\s*\n([\s\S]+?)\n```/i,
+    // Fallback for just finding a code block after some keywords
     /(?:corrected|fixed|updated)[\s\S]*?```(?:typescript|tsx?|javascript|js)?\s*\n([\s\S]+?)\n```/i,
+    // The most generic fallback: find the first multi-line code block.
     /```(?:typescript|tsx?|javascript|js)?\s*\n([\s\S]+?)\n```/,
   ];
 
   for (const pattern of patterns) {
     const match = responseText.match(pattern);
     if (match?.[1]?.trim()) {
-      console.log('[GeneratorAgent] Successfully extracted corrected code using pattern');
+      console.log('[GeneratorAgent] Successfully extracted corrected code using pattern.');
       return match[1].trim();
     }
   }
 
+  // Last-ditch effort if no code block is found but the header exists.
+  // This handles cases where the LLM forgets the closing backticks.
   const headerMatch = responseText.match(/###?\s*(?:CORRECTED CODE|Corrected Code):\s*\n([\s\S]+?)(?:\n###|$)/i);
   if (headerMatch?.[1]) {
     const cleanCode = headerMatch[1]
-      .replace(/```[\s\S]*?\n/, '')
-      .replace(/\n```[\s\S]*$/, '')
+      .replace(/```[\s\S]*?\n/, '') // Remove opening backticks
+      .replace(/\n```[\s\S]*$/, '') // Remove closing backticks
       .trim();
 
     if (cleanCode) {
-      console.log('[GeneratorAgent] Extracted code using header fallback method');
+      console.log('[GeneratorAgent] Extracted code using header fallback method.');
       return cleanCode;
     }
   }
 
-  console.error('[GeneratorAgent] CRITICAL: Failed to extract code from correction response');
-  console.error('[GeneratorAgent] Response preview:', responseText.substring(0, 200) + '...');
-  console.error('[GeneratorAgent] Returning full response - this will likely cause audit failure');
-
+  console.error('[GeneratorAgent] CRITICAL: Failed to extract code from correction response.');
+  console.error('[GeneratorAgent] Response preview:', responseText.substring(0, 250) + '...');
+  console.error('[GeneratorAgent] Returning full response - this will likely cause audit failure.');
+  
+  // Return the raw response as a final fallback.
   return responseText.trim();
 }
+
 
 /**
  * A Genkit flow that generates or corrects code based on a task description.
@@ -85,7 +98,6 @@ export const generateCode = ai.defineFlow(
       'failedCode' in input && typeof input.failedCode === 'string' && typeof input.critique === 'string';
 
     if (isCorrection) {
-      // TS now knows input is the correction type inside this block
       const { failedCode, critique } = input;
 
       console.log('[GeneratorAgent] Received correction request. Engaging Mandatory Compliance Protocol.');
@@ -164,25 +176,29 @@ BEGIN CORRECTION PROTOCOL NOW.
     });
 
     const extractedCode = extractCodeFromResponse(llmResponse.text, isCorrection);
-
+    
+    // Add sanity checks for the extracted code.
     if (isCorrection) {
       const { failedCode } = input; // safe due to narrowing above
 
       if (extractedCode === failedCode) {
-        console.warn('[GeneratorAgent] WARNING: Corrected code appears identical to failed code');
+        console.warn('[GeneratorAgent] WARNING: Corrected code appears identical to failed code.');
       }
-
+      
       if (
         extractedCode.length < 50 ||
         (!extractedCode.includes('import') &&
           !extractedCode.includes('function') &&
           !extractedCode.includes('const'))
       ) {
-        console.warn('[GeneratorAgent] WARNING: Extracted code appears to be incomplete or malformed');
+        console.warn('[GeneratorAgent] WARNING: Extracted code appears to be incomplete or malformed.');
         console.warn('[GeneratorAgent] Extracted:', extractedCode.substring(0, 100) + '...');
       }
     }
 
+
     return extractedCode;
   }
 );
+
+    
