@@ -1,4 +1,3 @@
-
 /**
  * @fileOverview The main orchestrator script for the autonomous development cycle.
  * This script can either:
@@ -71,6 +70,12 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
   
   await appendToJournal(`## Task Description\n\n\`\`\`\n${taskDescription}\n\`\`\``);
 
+  // --- SURGICAL CORRECTION REFACTOR ---
+  // Retrieve relevant context ONCE before the loop begins.
+  const relevantContextChunks = await retrieveRelevantContext(taskDescription);
+  console.log(`[Orchestrator] Retrieved ${relevantContextChunks.length} context chunks for this task.`);
+  await appendToJournal(`### Retrieved Context (RAG)\n\n${relevantContextChunks.map((c, i) => `**Chunk ${i+1}:**\n\`\`\`\n${c}\n\`\`\``).join('\n\n')}`);
+
   let currentCode: string | undefined = initialCode;
   let auditReport: string | undefined;
   let verdict: 'PASS' | 'FAIL' = 'FAIL';
@@ -82,10 +87,6 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
     // This is the core logic for the Generate -> Critique -> Correct loop
     if (attempt === 1 && !isAuditMode) {
         // --- INITIAL GENERATION ---
-        const relevantContextChunks = await retrieveRelevantContext(taskDescription);
-        console.log(`[Orchestrator] Retrieved ${relevantContextChunks.length} context chunks for initial generation.`);
-        await appendToJournal(`### Retrieved Context (RAG)\n\n${relevantContextChunks.map((c, i) => `**Chunk ${i+1}:**\n\`\`\`\n${c}\n\`\`\``).join('\n\n')}`);
-        
         console.log('[Orchestrator] Calling Generator Agent for first draft...');
         currentCode = await generateCode({ taskDescription, context: relevantContextChunks });
         await appendToJournal(`### Generated Code (Attempt #${attempt})\n\n\`\`\`typescript\n${currentCode}\n\`\`\``);
@@ -95,16 +96,11 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
         console.log('[Orchestrator] Calling Generator Agent for correction...');
         
         // ** THE DEFINITIVE FIX **
-        // On correction attempts, we provide the FULL CONSTITUTION as context, not just the RAG chunks.
-        // This gives the Generator the same worldview as the Critic, allowing it to understand the critique fully.
-        const correctionContext = [projectConstitution];
-        
-        await appendToJournal(`### Correction Prompt (Attempt #${attempt})\n\n\`\`\`\n${'You are an expert software engineer... (Correction prompt content)'}\n\`\`\``);
-        
-        // Call the agent with the full constitution as its context.
+        // Provide only the FAILED_CODE, the CRITIQUE, and the SAME relevant context chunks.
+        // DO NOT provide the full constitution, as this confuses the agent.
         currentCode = await generateCode({
             taskDescription,
-            context: correctionContext,
+            context: relevantContextChunks, // Use the original, focused context
             failedCode: currentCode,
             critique: auditReport,
         });
@@ -178,5 +174,3 @@ if (!taskOrFilePath) {
 }
 
 runDevelopmentCycle(taskOrFilePath, outputFilePath);
-
-    
