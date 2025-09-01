@@ -50,6 +50,8 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
   let initialCode: string | undefined;
   let taskDescription: string;
   const isAuditMode = await fs.stat(taskOrFilePath).then(s => s.isFile()).catch(() => false);
+  const projectConstitution = await fs.readFile(path.join(process.cwd(), 'CONTEXT.md'), 'utf-8');
+
 
   if (isAuditMode) {
     taskDescription = `Audit and correct the following code file: ${taskOrFilePath}`;
@@ -77,38 +79,60 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
     console.log(`\n[Orchestrator] Attempt #${attempt}`);
     await appendToJournal(`## Attempt #${attempt}`);
 
+    // This is the core logic for the Generate -> Critique -> Correct loop
     if (attempt === 1 && !isAuditMode) {
+        // --- INITIAL GENERATION ---
         const relevantContextChunks = await retrieveRelevantContext(taskDescription);
         console.log(`[Orchestrator] Retrieved ${relevantContextChunks.length} context chunks for initial generation.`);
-        
         await appendToJournal(`### Retrieved Context (RAG)\n\n${relevantContextChunks.map((c, i) => `**Chunk ${i+1}:**\n\`\`\`\n${c}\n\`\`\``).join('\n\n')}`);
         
         console.log('[Orchestrator] Calling Generator Agent for first draft...');
         currentCode = await generateCode({ taskDescription, context: relevantContextChunks });
         await appendToJournal(`### Generated Code (Attempt #${attempt})\n\n\`\`\`typescript\n${currentCode}\n\`\`\``);
-    } else if (isAuditMode && attempt === 1) {
-        // In audit mode, the first action is to critique the existing code.
+
     } else if (currentCode && auditReport) {
-        // On subsequent attempts, generate a correction.
+        // --- CORRECTION ATTEMPT ---
         console.log('[Orchestrator] Calling Generator Agent for correction...');
-        const relevantContextChunks = await retrieveRelevantContext(taskDescription);
+        
+        // ** THE DEFINITIVE FIX **
+        // On correction attempts, we provide the FULL CONSTITUTION as context, not just the RAG chunks.
+        // This gives the Generator the same worldview as the Critic, allowing it to understand the critique fully.
+        const correctionContext = [projectConstitution];
         
         const correctionPrompt = `
-          You are an expert software engineer... (Correction prompt content)
-          FAILED CODE: \`\`\`typescript
-${currentCode}
-\`\`\`
-          AUDIT REPORT: ${auditReport}
+          You are an expert software engineer. The previous code you generated failed its quality and security audit.
+          Your task is to rewrite the code to address every issue identified in the audit report below.
+          You must not introduce any new functionality or deviate from the original requirements.
+          The rewritten code must be of the highest quality and designed to pass the audit.
+
+          ORIGINAL TASK:
+          ---
+          ${taskDescription}
+          ---
+          
+          FAILED CODE:
+          ---
+          ${currentCode}
+          ---
+
+          AUDIT REPORT:
+          ---
+          ${auditReport}
+          ---
+
+          Now, provide the corrected and improved version of the code. Only output the raw code, with no explanations or markdown.
         `;
         
         await appendToJournal(`### Correction Prompt (Attempt #${attempt})\n\n\`\`\`\n${correctionPrompt}\n\`\`\``);
-
+        
+        // Call the agent with the full constitution as its context.
         currentCode = await generateCode({
             taskDescription,
-            context: relevantContextChunks,
+            context: correctionContext,
             failedCode: currentCode,
             critique: auditReport,
         });
+
         await appendToJournal(`### Generated Code (Attempt #${attempt})\n\n\`\`\`typescript\n${currentCode}\n\`\`\``);
     }
 
@@ -121,7 +145,7 @@ ${currentCode}
     }
 
     console.log('[Orchestrator] Submitting code for critique...');
-    const projectConstitution = await fs.readFile(path.join(process.cwd(), 'CONTEXT.md'), 'utf-8');
+    // The Critique Agent ALWAYS gets the full constitution.
     const rawCritiqueReport = await critiqueCode({
       codeToCritique: currentCode,
       projectConstitution: projectConstitution,
@@ -129,8 +153,9 @@ ${currentCode}
     
     await appendToJournal(`### Critique Report (Attempt #${attempt})\n\n${rawCritiqueReport}`);
     
-    const verdictMatch = rawCritiqueReport.match(/\\*\\*Verdict:\\*\\*\\s*(PASS|FAIL)/i);
-    verdict = (verdictMatch ? verdictMatch[1].toUpperCase() : 'FAIL') as 'PASS' | 'FAIL';
+    // We now have a more robust verdict parsing logic
+    const verdictMatch = rawCritiqueReport.match(/(\n|\r\n)3\. Verdict:\s*(\w+)/i);
+    verdict = (verdictMatch && verdictMatch[2].toUpperCase() === 'PASS') ? 'PASS' : 'FAIL';
     auditReport = rawCritiqueReport;
     
     console.log(`[Orchestrator] Critique Verdict: ${verdict}`);
@@ -144,13 +169,17 @@ ${currentCode}
   }
 
   if (verdict === 'PASS' && currentCode) {
+    if (!outputFilePath) {
+      console.error('[Orchestrator] FATAL: Output file path is missing for a successful run.');
+      process.exit(1);
+    }
     await appendToJournal(`## Final Outcome\n\n**STATUS:** ✅ PASS\n**File Path:** \`${outputFilePath}\``);
     await appendToJournal(`## Final Code\n\n\`\`\`typescript\n${currentCode}\n\`\`\``);
     
     console.log(`[Orchestrator] Writing final, audited code to ${outputFilePath}`);
-    const outputDir = path.dirname(outputFilePath!);
+    const outputDir = path.dirname(outputFilePath);
     await fs.mkdir(outputDir, { recursive: true });
-    await fs.writeFile(outputFilePath!, currentCode);
+    await fs.writeFile(outputFilePath, currentCode);
     console.log(`[Orchestrator] ✅ Development cycle complete. See full log at: ${logFilePath}`);
   } else {
     const finalMessage = `❌ Failed to produce passing code after 3 attempts.`;
@@ -161,15 +190,17 @@ ${currentCode}
   }
 }
 
-// This allows the script to be run from the command line.
-const argument = process.argv[2];
-const outputFile = process.argv[3];
+// --- Script Execution ---
+const taskOrFilePath = process.argv[2];
+const outputFilePath = process.argv[3];
 
-if (!argument) {
+if (!taskOrFilePath) {
   console.error('Usage:');
   console.error('  Generate: npx tsx scripts/orchestrator.ts "<task_description>" <output_file_path>');
-  console.error('  Audit:    npx tsx scripts/orchestrator.ts <path_to_existing_file>');
+  console.error('  Audit:    npx tsx scripts/orchestrator.ts <path_to_existing_file> [<output_file_path>]');
   process.exit(1);
 }
 
-runDevelopmentCycle(argument, outputFile);
+runDevelopmentCycle(taskOrFilePath, outputFilePath);
+
+    
