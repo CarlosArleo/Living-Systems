@@ -95,15 +95,17 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
         // --- CORRECTION ATTEMPT ---
         console.log('[Orchestrator] Calling Generator Agent for correction...');
         
-        // ** THE DEFINITIVE FIX **
         // Provide only the FAILED_CODE, the CRITIQUE, and the SAME relevant context chunks.
-        // DO NOT provide the full constitution, as this confuses the agent.
-        currentCode = await generateCode({
+        const correctedCode = await generateCode({
             taskDescription,
             context: relevantContextChunks, // Use the original, focused context
             failedCode: currentCode,
             critique: auditReport,
         });
+
+        // !! THE DEFINITIVE FIX !!
+        // Update the main `currentCode` variable with the newly generated version.
+        currentCode = correctedCode;
 
         await appendToJournal(`### Generated Code (Attempt #${attempt})\n\n\`\`\`typescript\n${currentCode}\n\`\`\``);
     }
