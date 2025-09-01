@@ -70,8 +70,6 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
   
   await appendToJournal(`## Task Description\n\n\`\`\`\n${taskDescription}\n\`\`\``);
 
-  // --- SURGICAL CORRECTION REFACTOR ---
-  // Retrieve relevant context ONCE before the loop begins.
   const relevantContextChunks = await retrieveRelevantContext(taskDescription);
   console.log(`[Orchestrator] Retrieved ${relevantContextChunks.length} context chunks for this task.`);
   await appendToJournal(`### Retrieved Context (RAG)\n\n${relevantContextChunks.map((c, i) => `**Chunk ${i+1}:**\n\`\`\`\n${c}\n\`\`\``).join('\n\n')}`);
@@ -84,32 +82,20 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
     console.log(`\n[Orchestrator] Attempt #${attempt}`);
     await appendToJournal(`## Attempt #${attempt}`);
 
-    // This is the core logic for the Generate -> Critique -> Correct loop
     if (attempt === 1 && !isAuditMode) {
-        // --- INITIAL GENERATION ---
         console.log('[Orchestrator] Calling Generator Agent for first draft...');
         currentCode = await generateCode({ taskDescription, context: relevantContextChunks });
         await appendToJournal(`### Generated Code (Attempt #${attempt})\n\n\`\`\`typescript\n${currentCode}\n\`\`\``);
-
     } else if (currentCode && auditReport) {
-        // --- CORRECTION ATTEMPT ---
         console.log('[Orchestrator] Calling Generator Agent for correction...');
-        
-        // Provide only the FAILED_CODE, the CRITIQUE, and the SAME relevant context chunks.
-        const correctedCode = await generateCode({
+        currentCode = await generateCode({
             taskDescription,
-            context: relevantContextChunks, // Use the original, focused context
+            context: relevantContextChunks,
             failedCode: currentCode,
             critique: auditReport,
         });
-
-        // !! THE DEFINITIVE FIX !!
-        // Update the main `currentCode` variable with the newly generated version.
-        currentCode = correctedCode;
-
         await appendToJournal(`### Generated Code (Attempt #${attempt})\n\n\`\`\`typescript\n${currentCode}\n\`\`\``);
     }
-
 
     if (!currentCode) {
         const errorMsg = '[Orchestrator] No code available to critique. Aborting.';
@@ -119,7 +105,6 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
     }
 
     console.log('[Orchestrator] Submitting code for critique...');
-    // The Critique Agent ALWAYS gets the full constitution.
     const rawCritiqueReport = await critiqueCode({
       codeToCritique: currentCode,
       projectConstitution: projectConstitution,
@@ -127,7 +112,6 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
     
     await appendToJournal(`### Critique Report (Attempt #${attempt})\n\n${rawCritiqueReport}`);
     
-    // We now have a more robust verdict parsing logic
     const verdictMatch = rawCritiqueReport.match(/(\n|\r\n)3\. Verdict:\s*(\w+)/i);
     verdict = (verdictMatch && verdictMatch[2].toUpperCase() === 'PASS') ? 'PASS' : 'FAIL';
     auditReport = rawCritiqueReport;
@@ -147,14 +131,16 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
       console.error('[Orchestrator] FATAL: Output file path is missing for a successful run.');
       process.exit(1);
     }
+    const finalMessage = `✅ Development cycle complete. Final code passed the audit.`;
     await appendToJournal(`## Final Outcome\n\n**STATUS:** ✅ PASS\n**File Path:** \`${outputFilePath}\``);
     await appendToJournal(`## Final Code\n\n\`\`\`typescript\n${currentCode}\n\`\`\``);
     
+    console.log(`\n[Orchestrator] ${finalMessage}`);
     console.log(`[Orchestrator] Writing final, audited code to ${outputFilePath}`);
     const outputDir = path.dirname(outputFilePath);
     await fs.mkdir(outputDir, { recursive: true });
     await fs.writeFile(outputFilePath, currentCode);
-    console.log(`[Orchestrator] ✅ Development cycle complete. See full log at: ${logFilePath}`);
+    console.log(`[Orchestrator] ✅ Process complete. See full log at: ${logFilePath}`);
   } else {
     const finalMessage = `❌ Failed to produce passing code after 3 attempts.`;
     await appendToJournal(`## Final Outcome\n\n**STATUS:** ❌ FAIL\n**REASON:** ${finalMessage}`);
@@ -175,4 +161,7 @@ if (!taskOrFilePath) {
   process.exit(1);
 }
 
-runDevelopmentCycle(taskOrFilePath, outputFilePath);
+runDevelopmentCycle(taskOrFilePath, outputFilePath).catch(error => {
+    console.error("Orchestrator script encountered an unhandled exception:", error);
+    process.exit(1);
+});
