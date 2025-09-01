@@ -86,7 +86,32 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
         console.log('[Orchestrator] Calling Generator Agent for first draft...');
         currentCode = await generateCode({ taskDescription, context: relevantContextChunks });
         await appendToJournal(`### Generated Code (Attempt #${attempt})\n\n\`\`\`typescript\n${currentCode}\n\`\`\``);
+    } else if (isAuditMode && attempt === 1) {
+        // In audit mode, the first action is to critique the existing code.
+    } else if (currentCode && auditReport) {
+        // On subsequent attempts, generate a correction.
+        console.log('[Orchestrator] Calling Generator Agent for correction...');
+        const relevantContextChunks = await retrieveRelevantContext(taskDescription);
+        
+        const correctionPrompt = `
+          You are an expert software engineer... (Correction prompt content)
+          FAILED CODE: \`\`\`typescript
+${currentCode}
+\`\`\`
+          AUDIT REPORT: ${auditReport}
+        `;
+        
+        await appendToJournal(`### Correction Prompt (Attempt #${attempt})\n\n\`\`\`\n${correctionPrompt}\n\`\`\``);
+
+        currentCode = await generateCode({
+            taskDescription,
+            context: relevantContextChunks,
+            failedCode: currentCode,
+            critique: auditReport,
+        });
+        await appendToJournal(`### Generated Code (Attempt #${attempt})\n\n\`\`\`typescript\n${currentCode}\n\`\`\``);
     }
+
 
     if (!currentCode) {
         const errorMsg = '[Orchestrator] No code available to critique. Aborting.';
@@ -113,25 +138,8 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
     if (verdict === 'PASS') {
         console.log('[Orchestrator] ✅ Code has passed the audit!');
         break; 
-    } else {
+    } else if (attempt < 3) {
         console.log('[Orchestrator] ❌ Code failed audit. Preparing for correction loop...');
-        const relevantContextChunks = await retrieveRelevantContext(taskDescription);
-        
-        const correctionPrompt = `
-          You are an expert software engineer... (Correction prompt content)
-          FAILED CODE: ${currentCode}
-          AUDIT REPORT: ${auditReport}
-        `; // Simplified for brevity in this final version, full prompt is used by the flow.
-        
-        await appendToJournal(`### Correction Prompt (Attempt #${attempt + 1})\n\n\`\`\`\n${correctionPrompt}\n\`\`\``);
-
-        currentCode = await generateCode({
-            taskDescription,
-            context: relevantContextChunks,
-            failedCode: currentCode,
-            critique: auditReport,
-        });
-        await appendToJournal(`### Generated Code (Attempt #${attempt + 1})\n\n\`\`\`typescript\n${currentCode}\n\`\`\``);
     }
   }
 
@@ -140,6 +148,8 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
     await appendToJournal(`## Final Code\n\n\`\`\`typescript\n${currentCode}\n\`\`\``);
     
     console.log(`[Orchestrator] Writing final, audited code to ${outputFilePath}`);
+    const outputDir = path.dirname(outputFilePath!);
+    await fs.mkdir(outputDir, { recursive: true });
     await fs.writeFile(outputFilePath!, currentCode);
     console.log(`[Orchestrator] ✅ Development cycle complete. See full log at: ${logFilePath}`);
   } else {

@@ -44,19 +44,24 @@ FAIL
     }
 
 
-    // This is the Critique-Bot Playbook prompt
+    // This is the Critique-Bot Playbook prompt, now tuned for pragmatism.
     const prompt = `
-      You are an expert, hyper-critical but pragmatic code auditor and security analyst. Your sole purpose is to review the provided code and identify any and all flaws, weaknesses, and deviations from best practices. You are meticulous and unforgiving. Your analysis must be grounded in the standards and principles defined in the project's CONSTITUTION, which is the ultimate source of truth.
+      You are an expert, hyper-critical but pragmatic code auditor and security analyst. Your sole purpose is to review the provided code and identify any and all flaws, weaknesses, and deviations from best practices.
 
-      IMPORTANT: Your primary goal is to find MATERIAL flaws. A material flaw is one that directly violates a written rule in the CONSTITUTION, introduces a security risk, or causes a logical error. Do not fail the code for minor stylistic preferences, overly theoretical edge cases not relevant to the task, or for being "too simple" if it correctly fulfills the request. Your critique must be pragmatic.
+      IMPORTANT: Your primary goal is to find MATERIAL flaws. A material flaw is one that:
+      1. Directly violates an explicit rule written in the CONSTITUTION (e.g., using a forbidden library, incorrect error handling pattern).
+      2. Introduces a clear security vulnerability (e.g., prompt injection, missing authentication).
+      3. Causes a logical error that will prevent the code from functioning as requested.
+      
+      You must be forgiving of minor stylistic preferences, overly theoretical edge cases not relevant to the task, or code that is "too simple" if it correctly and safely fulfills the request. Your critique must be pragmatic and actionable.
 
       Analyze the provided CODE TO CRITIQUE against the following five criteria:
 
       1.  **Correctness & Logic:** Does the code correctly and completely implement the requested logic? Are there any bugs, race conditions, or logical fallacies?
-      2.  **Adherence to Constitution:** Does the code violate any architectural patterns, coding standards, or explicit directives defined in the CONSTITUTION? (e.g., use of a forbidden library, incorrect error handling pattern).
+      2.  **Adherence to Constitution:** Does the code violate any architectural patterns, coding standards, or explicit directives defined in the CONSTITUTION?
       3.  **Security Vulnerabilities:** Perform a security scan. Look for common vulnerabilities such as lack of input validation, potential for injection attacks, insecure direct object references, or improper handling of secrets.
-      4.  **Performance Bottlenecks:** Identify any inefficient code patterns that could lead to poor performance or excessive cost at scale. This includes issues like fetching entire collections inside a loop, using synchronous operations where asynchronous would be better, or failing to implement caching for expensive operations.
-      5.  **Readability & Maintainability:** Is the code clear, well-commented (explaining the 'why'), and idiomatic for the language? Is it overly complex? Does it lack modularity?
+      4.  **Performance Bottlenecks:** Identify any inefficient code patterns that could lead to poor performance or excessive cost at scale.
+      5.  **Readability & Maintainability:** Is the code clear, well-commented (explaining the 'why'), and idiomatic for the language?
 
       Output Format:
       You MUST provide your feedback in the following structured Markdown format. Be objective, specific, and provide actionable recommendations.
@@ -64,13 +69,13 @@ FAIL
       ### Code Audit Report
 
       **1. Issues Found:**
-      (A numbered list of every issue you identified, categorized by the criteria above. For each issue, provide a specific code snippet and explain the flaw. If no issues are found, state "No issues found.")
+      (A numbered list of every material issue you identified. If no material issues are found, state "No material issues found.")
 
       **2. Suggested Improvements:**
       (A bulleted list of concrete, actionable recommendations to fix the identified issues. If no issues, state "None.")
 
       **3. Verdict:**
-      (A single word: PASS or FAIL. The verdict is FAIL if even a single material issue is found.)
+      (A single word: PASS or FAIL. The verdict is FAIL only if a material issue is found.)
 
       ---
       CONSTITUTION:
@@ -91,5 +96,4 @@ FAIL
     return llmResponse.text;
   }
 );
-
     

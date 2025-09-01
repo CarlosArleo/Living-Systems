@@ -47,7 +47,7 @@ The system is a **Decoupled Full-Stack Application**. The frontend (Next.js) is 
 
 *   **API Routes:** All backend logic is exposed via specific, single-purpose API routes in `src/app/api/`.
 *   **Genkit Flows:** The core AI logic is encapsulated in Genkit flows located in `src/ai/flows/`. This isolates AI logic for maintainability and testing.
-*   **Master Prompts:** Every AI call within a flow or API route **MUST** use the exact corresponding prompt from the `docs/AI_Prompt_Engineering_Framework.md` document. No inline or ad-hoc prompting is permitted.
+*   **Master Prompts:** Each Genkit flow that calls an AI model **MUST** import its prompt from a dedicated `.prompt` file located in `src/ai/prompts/`. For a flow named `example.ts`, its prompt must be in `src/ai/prompts/example.prompt`. This ensures a clean, 1-to-1 relationship between a flow and its instructions.
 
 ### **2.3. Firestore Data Modeling**
 
@@ -65,7 +65,7 @@ The system is a **Decoupled Full-Stack Application**. The frontend (Next.js) is 
   - `email`: (string) The user's email address (for reference).
   - `displayName`: (string) The user's public display name.
   - `role`: (string) The user's role in the system (e.g., 'practitioner', 'community_member', 'admin').
-  - `createdAt`: (Timestamp) The timestamp of the user's creation.
+  - `createdAt`: (Timestamp) The user's creation.
 
 #### **Table 1: Firestore Data Modeling Strategies (Decision Matrix)**
 
