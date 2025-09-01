@@ -26,48 +26,31 @@ const CorrectCodeInputSchema = z.object({
 const FlowInputSchema = z.union([GenerateCodeInputSchema, CorrectCodeInputSchema]);
 type FlowInput = z.infer<typeof FlowInputSchema>;
 
+
 /**
- * Robust function to extract code from LLM response, handling various formatting inconsistencies.
+ * FIX #3: Enhanced function to extract code from LLM response, handling various formatting inconsistencies.
  * @param responseText The full text output from the LLM.
  * @param isCorrection A boolean indicating if this is a correction attempt.
  * @returns The cleaned, extracted code string.
  */
 function extractCodeFromResponse(responseText: string, isCorrection: boolean): string {
-  // For initial generation, the entire response is the code.
-  // Also handle cases where the generation might be wrapped in backticks
-  const initialGenMatch = responseText.match(/```(?:typescript|tsx|javascript|js)?\s*\n([\s\S]+?)\n```/);
   if (!isCorrection) {
-    return (initialGenMatch && initialGenMatch[1]) ? initialGenMatch[1].trim() : responseText.trim();
+    const match = responseText.match(/```(?:typescript|tsx|javascript|js)?\s*\n([\s\S]+?)\n```/);
+    return (match && match[1]) ? match[1].trim() : responseText.trim();
   }
-
-  // For corrections, the model provides analysis headers. We must find the code block.
+  
+  // Enhanced patterns for correction mode
   const patterns = [
     /###\s*CORRECTED CODE:\s*```(?:typescript|tsx?|javascript|js)?\s*\n([\s\S]+?)\n```/i,
     /##\s*CORRECTED CODE:\s*```(?:typescript|tsx?|javascript|js)?\s*\n([\s\S]+?)\n```/i,
-    /(?:corrected|fixed|updated)[\s\S]*?```(?:typescript|tsx?|javascript|js)?\s*\n([\s\S]+?)\n```/i,
-    /```(?:typescript|tsx?|javascript|js)?\s*\n([\s\S]+?)\n```/,
+    /```(?:typescript|tsx?|javascript|js)?\s*\n([\s\S]+?)\n```/, // Fallback
   ];
-
+  
   for (const pattern of patterns) {
     const match = responseText.match(pattern);
-    if (match?.[1]?.trim()) {
-      return match[1].trim();
-    }
+    if (match?.[1]?.trim()) return match[1].trim();
   }
-
-  const headerMatch = responseText.match(/###?\s*(?:CORRECTED CODE|Corrected Code):\s*\n([\s\S]+?)(?:\n###|$)/i);
-  if (headerMatch?.[1]) {
-    const cleanCode = headerMatch[1]
-      .replace(/```[\s\S]*?\n/, '')
-      .replace(/\n```[\s\S]*$/, '')
-      .trim();
-
-    if (cleanCode) {
-      return cleanCode;
-    }
-  }
-
-  console.warn('[GeneratorAgent] Could not extract code from correction response. Returning full response.');
+  
   return responseText.trim();
 }
 
@@ -87,13 +70,11 @@ export const generateCode = ai.defineFlow(
       'failedCode' in input && typeof input.failedCode === 'string' && typeof input.critique === 'string';
 
     if (isCorrection) {
+      // FIX #1: New, more robust correction prompt
       const { failedCode, critique } = input;
-
       console.log('[GeneratorAgent] Received correction request. Engaging Mandatory Compliance Protocol.');
-
       prompt = `
 # CRITICAL: CORRECTION MODE
-
 You are in DEBUG AND FIX mode. Your ONLY objective is to either fix specific violations or confirm a PASS.
 
 ## PREVIOUS CODE VERSION:
@@ -106,28 +87,26 @@ ${critique}
 
 ## CORRECTION PROTOCOL:
 1.  **Analyze the Verdict**: First, find the "Verdict:" line in the audit report.
-2.  **Handle PASS Verdict**: If the verdict is "PASS", your task is simple: **IGNORE all other instructions and output ONLY the original "PREVIOUS CODE VERSION" exactly as it was provided to you, inside a "CORRECTED CODE" block.** This indicates the code was already correct and requires no changes.
+2.  **Handle PASS Verdict**: If the verdict is "PASS", your task is simple: **IGNORE all other instructions and output ONLY the original "PREVIOUS CODE VERSION" exactly as it was provided to you, inside a "CORRECTED CODE" block.**
 3.  **Handle FAIL Verdict**: If the verdict is "FAIL", you MUST fix every single material violation listed in the audit.
-    a.  **Plan**: For each violation, state exactly what code change is needed.
-    b.  **Execute**: Make only those exact changes to the code. Do not add new features or refactor unrelated code.
 
 ## REQUIRED OUTPUT FORMAT:
-You MUST use this EXACT structure. Do not deviate:
+You MUST use this EXACT structure:
 
 ### VIOLATION ANALYSIS:
-(Your analysis of the violations from the audit report. If the verdict was PASS, state "No material violations found.")
+(Your analysis of the violations. If PASS, state "No material violations found.")
 
 ### CORRECTED CODE:
 \`\`\`typescript
-[Your fixed code here. If the verdict was PASS, this will be the identical to the PREVIOUS CODE VERSION.]
+[Your fixed code here. If PASS, this is identical to PREVIOUS CODE VERSION.]
 \`\`\`
 
 ### VERIFICATION:
-(Your verification that the violations are resolved, or confirmation that no changes were needed.)
+(Your verification that violations are resolved or none existed.)
 
-BEGIN CORRECTION PROTOCOL NOW.
-      `;
+BEGIN CORRECTION PROTOCOL NOW.`;
     } else {
+      // This is an initial generation prompt.
       console.log('[GeneratorAgent] Received initial generation request.');
       prompt = `
         You are an expert software engineer. Your task is to write code that accomplishes the following task.

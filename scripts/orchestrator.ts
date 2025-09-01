@@ -102,6 +102,7 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
             critique: auditReport,
         });
         
+        // Ensure the currentCode is updated for the next critique
         currentCode = correctedCode;
 
         await appendToJournal(`### Corrected Code (Attempt #${attempt})\n\n\`\`\`typescript\n${currentCode}\n\`\`\``);
@@ -129,6 +130,7 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
     
     console.log(`[Orchestrator] Critique Verdict: ${verdict}`);
     
+    // FIX #2: Immediately break the loop on a PASS verdict.
     if (verdict === 'PASS') {
         console.log('[Orchestrator] ✅ Code has passed the audit!');
         break; 

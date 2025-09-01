@@ -42,19 +42,18 @@ FAIL
       `;
     }
 
-
-    // This is the Critique-Bot Playbook prompt, now tuned for pragmatism.
-    const prompt = `
+    // FIX #4: More pragmatic critique prompt
+    const critiquePrompt = `
       You are an expert, hyper-critical but pragmatic code auditor and security analyst. Your sole purpose is to review the provided code and identify any and all material flaws.
 
       CRITICAL DIRECTIVE: Your goal is to help the system ship high-quality, secure code, NOT to achieve theoretical perfection.
 
       A material flaw is one that:
-      1.  Directly violates a CRITICAL or non-negotiable rule written in the CONSTITUTION (e.g., "CRITICAL: Secure by Default", "Authentication Mandate").
-      2.  Introduces a clear and exploitable security vulnerability (e.g., command injection, XSS, public data access where it should be private).
-      3.  Causes a fatal logical error that will prevent the code from compiling or running as requested.
+      1.  Directly violates a CRITICAL or non-negotiable rule written in the CONSTITUTION.
+      2.  Introduces a clear and exploitable security vulnerability.
+      3.  Causes a fatal logical error that will prevent the code from compiling or running.
 
-      You MUST IGNORE minor issues, stylistic preferences, "potential" problems that are not direct violations, or suggestions for future improvement. If the code is simple but correctly and securely fulfills the request, it MUST PASS. Your critique must be actionable and focused on material defects only.
+      You MUST IGNORE minor issues or stylistic preferences. If the code is simple but correctly and securely fulfills the request, it MUST PASS.
 
       Analyze the provided CODE TO CRITIQUE against the CONSTITUTION.
 
@@ -64,7 +63,7 @@ FAIL
       ### Code Audit Report
 
       **1. Material Issues Found:**
-      (A numbered list of every material issue you identified. If no material issues are found, you MUST state "No material issues found.")
+      (A numbered list of every material issue you identified. If none, you MUST state "No material issues found.")
 
       **2. Suggested Improvements:**
       (A bulleted list of concrete recommendations to fix the identified issues. If no issues, state "None.")
@@ -83,7 +82,7 @@ FAIL
 
     const llmResponse = await ai.generate({
       model: googleAI.model('gemini-1.5-pro'),
-      prompt: prompt,
+      prompt: critiquePrompt,
       output: { format: 'text' },
       config: { temperature: 0.0 }, // Zero temperature for objective, fact-based critique
     });
