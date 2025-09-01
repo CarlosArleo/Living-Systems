@@ -73,8 +73,8 @@ export async function retrieveRelevantContext(
     return [];
   }
 
-  // DEFINITIVE FIX: The `content` property for a single embedding request
-  // should be the string directly, not an object.
+  // DEFINITIVE FIX: The `ai.embed` function returns an array of embeddings.
+  // We need to access the first element and its `embedding` property.
   const embeddingResponse = await ai.embed({
       embedder: googleAI.embedder('text-embedding-004'),
       content: taskDescription,

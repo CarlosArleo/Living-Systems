@@ -99,31 +99,7 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
         // This gives the Generator the same worldview as the Critic, allowing it to understand the critique fully.
         const correctionContext = [projectConstitution];
         
-        const correctionPrompt = `
-          You are an expert software engineer. The previous code you generated failed its quality and security audit.
-          Your task is to rewrite the code to address every issue identified in the audit report below.
-          You must not introduce any new functionality or deviate from the original requirements.
-          The rewritten code must be of the highest quality and designed to pass the audit.
-
-          ORIGINAL TASK:
-          ---
-          ${taskDescription}
-          ---
-          
-          FAILED CODE:
-          ---
-          ${currentCode}
-          ---
-
-          AUDIT REPORT:
-          ---
-          ${auditReport}
-          ---
-
-          Now, provide the corrected and improved version of the code. Only output the raw code, with no explanations or markdown.
-        `;
-        
-        await appendToJournal(`### Correction Prompt (Attempt #${attempt})\n\n\`\`\`\n${correctionPrompt}\n\`\`\``);
+        await appendToJournal(`### Correction Prompt (Attempt #${attempt})\n\n\`\`\`\n${'You are an expert software engineer... (Correction prompt content)'}\n\`\`\``);
         
         // Call the agent with the full constitution as its context.
         currentCode = await generateCode({
