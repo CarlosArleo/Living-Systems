@@ -1,21 +1,43 @@
+
 /**
  * @fileOverview The Bio-Aware Monitor Agent.
  * This script runs periodically to check the health of the RDI Platform.
- * It is now self-contained and does not depend on src/ files.
+ * It is now self-contained and explicitly uses service account credentials.
  */
 import 'dotenv/config';
 import * as admin from 'firebase-admin';
 import { MetricServiceClient } from '@google-cloud/monitoring';
 import { google } from '@google-cloud/monitoring/build/protos/protos';
+import * as path from 'path';
 
-// --- Inlined Configuration Logic ---
+// --- Configuration & Initialization ---
+
+// Explicitly define the path to the service account key.
+const serviceAccountKeyPath = path.join(process.cwd(), 'credentials', 'rdd-application.json');
+
 const projectId = process.env.GCLOUD_PROJECT;
 if (!projectId) {
   throw new Error("FATAL: Required environment variable 'GCLOUD_PROJECT' is not set.");
 }
 console.log(`[Monitor-Config] Project ID: ${projectId}`);
 
-// --- Inlined Latency Checking Logic ---
+// Initialize Firebase and Google Cloud clients using the service account key.
+// This is the definitive fix for authentication issues.
+if (!admin.apps.length) {
+    admin.initializeApp({
+        credential: admin.credential.cert(serviceAccountKeyPath),
+        projectId: projectId,
+    });
+}
+const db = admin.firestore();
+
+const monitoringClient = new MetricServiceClient({
+    keyFilename: serviceAccountKeyPath,
+    projectId: projectId,
+});
+
+
+// --- Latency Checking Logic ---
 
 interface KpiViolation {
   metric: string;
@@ -26,7 +48,6 @@ interface KpiViolation {
 
 /**
  * Safely extracts the P95 percentile value from a time series point.
- * Returns null if the value cannot be accessed safely.
  */
 function safelyGetP95Percentile(series: any): number | null {
   try {
@@ -40,11 +61,10 @@ function safelyGetP95Percentile(series: any): number | null {
 }
 
 /**
- * Checks the P95 execution latency for a list of Cloud Functions against a threshold.
+ * Checks the P95 execution latency for Cloud Functions against a threshold.
  */
 async function checkFunctionLatency(
   functionNames: string[],
-  monitoringProjectId: string,
   thresholdMs: number
 ): Promise<KpiViolation[]> {
   const violations: KpiViolation[] = [];
@@ -54,13 +74,12 @@ async function checkFunctionLatency(
   }
 
   try {
-    const client = new MetricServiceClient();
     const functionNameFilters = functionNames.map(name => `resource.labels.function_name="${name}"`).join(' OR ');
     const filter = `metric.type="cloudfunctions.googleapis.com/function/execution_times" AND (${functionNameFilters})`;
 
     const now = Math.floor(Date.now() / 1000);
     const request = {
-      name: `projects/${monitoringProjectId}`,
+      name: `projects/${projectId}`,
       filter: filter,
       interval: { startTime: { seconds: now - 3600 }, endTime: { seconds: now } },
       aggregation: {
@@ -69,7 +88,7 @@ async function checkFunctionLatency(
       },
     };
 
-    const [timeSeries] = await client.listTimeSeries(request);
+    const [timeSeries] = await monitoringClient.listTimeSeries(request);
 
     timeSeries.forEach(series => {
       const functionName = series.resource?.labels?.['function_name'] || 'unknown';
@@ -88,7 +107,6 @@ async function checkFunctionLatency(
     });
   } catch (error) {
     console.error('Error checking function latency:', error);
-    // Re-throw to be caught by the main handler
     throw error;
   }
   return violations;
@@ -96,12 +114,6 @@ async function checkFunctionLatency(
 
 
 // --- Main Agent Logic ---
-
-// Initialize Firebase Admin SDK ONLY ONCE.
-if (!admin.apps.length) {
-    admin.initializeApp({ projectId });
-}
-const db = admin.firestore();
 
 /**
  * The main function for the Monitor Agent.
@@ -111,9 +123,7 @@ async function runHealthChecks() {
 
   try {
     const functionsToMonitor = ['triggerDocumentAnalysisOnUpload'];
-
-    const latencyViolations = await checkFunctionLatency(functionsToMonitor, projectId, 800);
-
+    const latencyViolations = await checkFunctionLatency(functionsToMonitor, 800);
     const allViolations = [...latencyViolations];
 
     if (allViolations.length > 0) {
