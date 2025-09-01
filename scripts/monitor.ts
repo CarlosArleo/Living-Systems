@@ -2,13 +2,14 @@
 /**
  * @fileOverview The Bio-Aware Monitor Agent.
  * This script runs periodically to check the health of the RDI Platform.
- * It is now self-contained and explicitly uses service account credentials.
+ * It is now self-contained and explicitly uses a service account key for auth.
  */
 import 'dotenv/config';
 import * as admin from 'firebase-admin';
 import { MetricServiceClient } from '@google-cloud/monitoring';
 import { google } from '@google-cloud/monitoring/build/protos/protos';
 import * as path from 'path';
+import * as fs from 'fs/promises';
 
 // --- Configuration & Initialization ---
 
@@ -21,8 +22,25 @@ if (!projectId) {
 }
 console.log(`[Monitor-Config] Project ID: ${projectId}`);
 
+// --- Self-Aware Service Account Identification ---
+// Read the service account email from the key file to ensure we know which identity to grant permissions to.
+let serviceAccountEmail: string;
+try {
+    const keyFileContent = require(serviceAccountKeyPath);
+    serviceAccountEmail = keyFileContent.client_email;
+    if (!serviceAccountEmail) {
+        throw new Error("`client_email` not found in service account key file.");
+    }
+    console.log(`[Monitor-Config] Using Service Account: ${serviceAccountEmail}`);
+} catch (error) {
+    console.error(`[Monitor-Config] FATAL: Could not read or parse the service account key at ${serviceAccountKeyPath}.`);
+    console.error(`[Monitor-Config] Ensure the file exists and is a valid JSON key file.`);
+    process.exit(1);
+}
+// --- End of Self-Aware Logic ---
+
+
 // Initialize Firebase and Google Cloud clients using the service account key.
-// This is the definitive fix for authentication issues.
 if (!admin.apps.length) {
     admin.initializeApp({
         credential: admin.credential.cert(serviceAccountKeyPath),
@@ -44,20 +62,6 @@ interface KpiViolation {
   threshold: number;
   measuredValue: number;
   resourceName: string;
-}
-
-/**
- * Safely extracts the P95 percentile value from a time series point.
- */
-function safelyGetP95Percentile(series: any): number | null {
-  try {
-    if (!series?.points?.[0]?.value?.distributionValue?.percentileValues) return null;
-    const p95 = series.points[0].value.distributionValue.percentileValues.find((pv: any) => pv.percentile === 95);
-    return typeof p95?.value === 'number' ? p95.value : null;
-  } catch (error) {
-    console.error('Error accessing P95 percentile value:', error);
-    return null;
-  }
 }
 
 /**
