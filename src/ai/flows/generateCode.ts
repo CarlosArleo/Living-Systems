@@ -37,7 +37,7 @@ function extractCodeFromResponse(responseText: string, isCorrection: boolean): s
   // For initial generation, the entire response is the code.
   if (!isCorrection) {
     // Also handle cases where the generation might be wrapped in backticks
-    const match = responseText.match(/```(?:typescript|tsx?|javascript|js)?\s*\n([\s\S]+?)\n```/);
+    const match = responseText.match(/```(?:typescript|tsx|javascript|js)?\s*\n([\s\S]+?)\n```/);
     if (match && match[1]) {
       return match[1].trim();
     }
@@ -113,7 +113,7 @@ export const generateCode = ai.defineFlow(
 You are in DEBUG AND FIX mode. Your ONLY objective is to fix specific violations.
 
 ## FAILED CODE:
-\`\`\`
+\`\`\`typescript
 ${failedCode}
 \`\`\`
 
@@ -121,23 +121,18 @@ ${failedCode}
 ${critique}
 
 ## CORRECTION PROTOCOL:
-1. **ANALYZE**: List every specific violation mentioned in the audit.
-2. **PRIORITIZE**: Order violations by severity (constitutional violations first).
-3. **PLAN**: For each violation, state exactly what code change is needed.
-4. **EXECUTE**: Make those exact changes, no more, no less.
-5. **VERIFY**: Check that each violation is resolved.
-
-## MANDATORY CONSTRAINTS:
-- You MUST address EVERY SINGLE violation listed in the audit.
-- You MUST NOT make changes unrelated to the violations.
-- You MUST NOT reinterpret the original task - just fix what's broken.
-- If unsure about a fix, choose the most conservative approach that directly addresses the critique.
+1.  **Analyze the Verdict**: First, look at the "Verdict" in the audit.
+2.  **Handle PASS Verdict**: If the verdict is "PASS", your task is simple: IGNORE all other instructions and output ONLY the original "FAILED CODE" exactly as it was provided to you, inside a "CORRECTED CODE" block. This indicates the code was already correct.
+3.  **Handle FAIL Verdict**: If the verdict is "FAIL", you MUST fix every single violation listed in the audit.
+    a.  **Plan**: For each violation, state exactly what code change is needed.
+    b.  **Execute**: Make only those exact changes to the code. Do not add new features or refactor unrelated code.
+    c.  **Verify**: Mentally check that each violation is resolved by your changes.
 
 ## REQUIRED OUTPUT FORMAT:
 You MUST use this EXACT structure. Do not deviate:
 
 ### VIOLATION ANALYSIS:
-1. [List each specific violation from audit] → [What exact change is needed for each]
+(Your analysis of the violations from the audit report.)
 
 ### CORRECTED CODE:
 \`\`\`typescript
@@ -145,9 +140,7 @@ You MUST use this EXACT structure. Do not deviate:
 \`\`\`
 
 ### VERIFICATION:
-- [x] Violation 1 fixed by [describe the specific change you made].
-
-CRITICAL: The code between the \`\`\`typescript and \`\`\` markers will be extracted and used directly. Ensure it is complete, executable code with no additional commentary.
+(Your verification that the violations are resolved.)
 
 BEGIN CORRECTION PROTOCOL NOW.
       `;
