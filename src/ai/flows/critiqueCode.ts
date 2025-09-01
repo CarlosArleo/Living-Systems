@@ -1,4 +1,3 @@
-
 /**
  * @fileOverview The "Critique Agent" for the RDI Platform.
  * This flow audits generated code against the project constitution.
@@ -42,7 +41,6 @@ export const critiqueCode = ai.defineFlow(
 FAIL
       `;
     }
-
 
     // This is the Critique-Bot Playbook prompt, now tuned for pragmatism.
     const prompt = `
@@ -96,4 +94,3 @@ FAIL
     return llmResponse.text;
   }
 );
-    

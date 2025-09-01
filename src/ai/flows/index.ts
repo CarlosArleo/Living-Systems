@@ -4,15 +4,15 @@
  * when this file is imported.
  */
 
-export * from './critiqueCode';
-export * from './embed';
-export * from './generateCode';
+// Core orchestrator flows - use specific exports to avoid conflicts
+export { generateCode } from './generateCode';
+export { critiqueCode } from './critiqueCode';
+export { embedText } from './embed';
+
+// Other flows - use wildcard exports since they don't conflict
 export * from './knowledge';
 export * from './rag-flow';
 export * from './simple';
 export * from './story-flow';
 export * from './meta-prompter';
-export * from './processing'; // Correct: Export the new unified flow
-// The old, separate flows are no longer needed.
-// export * from './harmonize';
-// export * from './integralAssessment';
+export * from './processing';

@@ -1,7 +1,6 @@
-
 /**
  * @fileOverview The "Generator Agent" for the RDI Platform.
- * This flow is responsible for writing the initial draft of code based on a task description.
+ * This flow is responsible for both initial code generation and self-correction based on audit reports.
  */
 'use server';
 
@@ -27,10 +26,52 @@ const CorrectCodeInputSchema = z.object({
 const FlowInputSchema = z.union([GenerateCodeInputSchema, CorrectCodeInputSchema]);
 type FlowInput = z.infer<typeof FlowInputSchema>;
 
+/**
+ * Robust function to extract code from LLM response, handling various formatting inconsistencies
+ */
+function extractCodeFromResponse(responseText: string, isCorrection: boolean): string {
+  if (!isCorrection) {
+    return responseText.trim();
+  }
+
+  const patterns = [
+    /###\s*CORRECTED CODE:\s*```(?:typescript|tsx?|javascript|js)?\s*\n([\s\S]+?)\n```/i,
+    /##\s*CORRECTED CODE:\s*```(?:typescript|tsx?|javascript|js)?\s*\n([\s\S]+?)\n```/i,
+    /###\s*Corrected Code:\s*```(?:typescript|tsx?|javascript|js)?\s*\n([\s\S]+?)\n```/i,
+    /(?:corrected|fixed|updated)[\s\S]*?```(?:typescript|tsx?|javascript|js)?\s*\n([\s\S]+?)\n```/i,
+    /```(?:typescript|tsx?|javascript|js)?\s*\n([\s\S]+?)\n```/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = responseText.match(pattern);
+    if (match?.[1]?.trim()) {
+      console.log('[GeneratorAgent] Successfully extracted corrected code using pattern');
+      return match[1].trim();
+    }
+  }
+
+  const headerMatch = responseText.match(/###?\s*(?:CORRECTED CODE|Corrected Code):\s*\n([\s\S]+?)(?:\n###|$)/i);
+  if (headerMatch?.[1]) {
+    const cleanCode = headerMatch[1]
+      .replace(/```[\s\S]*?\n/, '')
+      .replace(/\n```[\s\S]*$/, '')
+      .trim();
+
+    if (cleanCode) {
+      console.log('[GeneratorAgent] Extracted code using header fallback method');
+      return cleanCode;
+    }
+  }
+
+  console.error('[GeneratorAgent] CRITICAL: Failed to extract code from correction response');
+  console.error('[GeneratorAgent] Response preview:', responseText.substring(0, 200) + '...');
+  console.error('[GeneratorAgent] Returning full response - this will likely cause audit failure');
+
+  return responseText.trim();
+}
 
 /**
  * A Genkit flow that generates or corrects code based on a task description.
- * It dynamically adjusts its prompt based on whether it's a new task or a correction.
  */
 export const generateCode = ai.defineFlow(
   {
@@ -40,13 +81,15 @@ export const generateCode = ai.defineFlow(
   },
   async (input: FlowInput) => {
     let prompt: string;
+    const isCorrection =
+      'failedCode' in input && typeof input.failedCode === 'string' && typeof input.critique === 'string';
 
-    // Check if this is a correction task by looking for the 'failedCode' property
-    if ('failedCode' in input && input.failedCode && input.critique) {
-      // This is a correction prompt.
+    if (isCorrection) {
+      // TS now knows input is the correction type inside this block
+      const { failedCode, critique } = input;
+
       console.log('[GeneratorAgent] Received correction request. Engaging Mandatory Compliance Protocol.');
-      
-      // THE DEFINITIVE FIX: Using the user-architected, robust correction prompt.
+
       prompt = `
 # CRITICAL: CORRECTION MODE - NOT GENERATION MODE
 
@@ -54,11 +97,11 @@ You are in DEBUG AND FIX mode. Your ONLY objective is to fix specific violations
 
 ## FAILED CODE:
 \`\`\`
-${input.failedCode}
+${failedCode}
 \`\`\`
 
 ## AUDIT VIOLATIONS (MANDATORY TO FIX):
-${input.critique}
+${critique}
 
 ## CORRECTION PROTOCOL:
 1. **ANALYZE**: List every specific violation mentioned in the audit.
@@ -73,26 +116,25 @@ ${input.critique}
 - You MUST NOT reinterpret the original task - just fix what's broken.
 - If unsure about a fix, choose the most conservative approach that directly addresses the critique.
 
-## OUTPUT FORMAT:
-First provide your analysis and plan, then the corrected code, then your verification. Use this exact structure:
+## REQUIRED OUTPUT FORMAT:
+You MUST use this EXACT structure. Do not deviate:
 
 ### VIOLATION ANALYSIS:
 1. [List each specific violation from audit] → [What exact change is needed for each]
-2. [Violation 2] → [Change for violation 2]
 
 ### CORRECTED CODE:
 \`\`\`typescript
-[Your fixed code here]
+[Your fixed code here - ONLY the code, no comments about changes]
 \`\`\`
 
 ### VERIFICATION:
 - [x] Violation 1 fixed by [describe the specific change you made].
-- [x] Violation 2 fixed by [describe the specific change you made].
+
+CRITICAL: The code between the \`\`\`typescript and \`\`\` markers will be extracted and used directly. Ensure it is complete, executable code with no additional commentary.
 
 BEGIN CORRECTION PROTOCOL NOW.
       `;
     } else {
-      // This is an initial generation prompt.
       console.log('[GeneratorAgent] Received initial generation request.');
       prompt = `
         You are an expert software engineer. Your task is to write code that accomplishes the following task.
@@ -116,22 +158,31 @@ BEGIN CORRECTION PROTOCOL NOW.
 
     const llmResponse = await ai.generate({
       model: googleAI.model('gemini-1.5-pro'),
-      prompt: prompt,
-      output: { format: 'text' }, // We expect raw code output
-      config: { temperature: 0.1 }, // Low temperature for more deterministic code
+      prompt,
+      output: { format: 'text' },
+      config: { temperature: 0.1 },
     });
 
-    // The new correction prompt includes analysis headers. We need to strip them
-    // to return only the pure code.
-    const responseText = llmResponse.text;
-    const codeMatch = responseText.match(/### CORRECTED CODE:\s*```(?:typescript|tsx|)\n([\s\S]+)\n```/);
+    const extractedCode = extractCodeFromResponse(llmResponse.text, isCorrection);
 
-    if (codeMatch && codeMatch[1]) {
-        // If it was a correction, return just the code block.
-        return codeMatch[1].trim();
-    } else {
-        // Otherwise, it was an initial generation, return the whole text.
-        return responseText.trim();
+    if (isCorrection) {
+      const { failedCode } = input; // safe due to narrowing above
+
+      if (extractedCode === failedCode) {
+        console.warn('[GeneratorAgent] WARNING: Corrected code appears identical to failed code');
+      }
+
+      if (
+        extractedCode.length < 50 ||
+        (!extractedCode.includes('import') &&
+          !extractedCode.includes('function') &&
+          !extractedCode.includes('const'))
+      ) {
+        console.warn('[GeneratorAgent] WARNING: Extracted code appears to be incomplete or malformed');
+        console.warn('[GeneratorAgent] Extracted:', extractedCode.substring(0, 100) + '...');
+      }
     }
+
+    return extractedCode;
   }
 );
