@@ -9,37 +9,62 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 
 // --- Type Definitions ---
-interface RoadmapItem {
+interface SubTask {
   text: string;
   status: '✅ DONE' | '[ ] PENDING';
 }
 
-interface RoadmapTier {
-  title: string;
-  items: RoadmapItem[];
+interface MainTask {
+  text: string;
+  status: '✅ DONE' | '[ ] PENDING' | '📊 IN PROGRESS';
+  subTasks: SubTask[];
   completion: number;
 }
 
-// --- Evidence Mapping ---
-// This remains the core logic connecting the roadmap to the codebase.
-// Each key is a substring of a roadmap item. Each value is an array of
-// keywords or file paths that serve as "proof" of completion.
+interface RoadmapTier {
+  title: string;
+  tasks: MainTask[];
+  completion: number;
+}
+
+// --- Granular Evidence Mapping ---
+// This map now links specific sub-tasks (or main tasks if they have no sub-tasks)
+// to the evidence of their completion in the codebase.
 const evidenceMap: Record<string, string[]> = {
-  "User Authentication & Profile Management": ["src/app/login/page.tsx", "src/components/user-profile.tsx", "signInWithRedirect"],
-  "Core Data Ingestion Flow": ["src/components/upload-dialog.tsx", "onObjectFinalized"],
-  "\"Integral Assessment\" AI Engine": ["src/ai/flows/processing.ts", "processUploadedDocument"],
-  "Data Visualization Dashboard": ["src/components/place-detail-view.tsx", "src/components/map.tsx"],
-  "Foundational Governance": ["firestore.rules", "allow write: if false;"],
-  "\"Story of Place\" AI Synthesis": ["src/ai/flows/story-flow.ts", "generateStoryOfPlace"],
-  "Collaboration & Feedback Features": ["src/components/feedback-panel.tsx", "/api/feedback/route.ts"],
-  "User Roles & Permissions": ["request.auth.token.admin", "hasOnly(['displayName'])"], // Keywords indicating role logic
-  "\"Nodal Intervention Mapper\"": ["<simulation-placeholder>"], // Placeholder for future feature
-  "Constrained Generative Design Module": ["<generative-design-placeholder>"], // Placeholder for future feature
+    // Tier 1
+    "Implement UI Components": ["src/app/login/page.tsx", "src/components/user-profile.tsx"],
+    "Implement Backend Logic": ["firebase.auth()", "firebase-admin", "users"],
+    "Implement Protected Routes": ["next/navigation", "useRouter"],
+    "Create Document Upload UI": ["src/components/upload-dialog.tsx"],
+    "Develop Backend Upload Handler": ["onObjectFinalized", "firebase-functions/v2/storage"],
+    "Develop the Genkit Analysis Flow": ["src/ai/flows/processing.ts", "processUploadedDocument"],
+    "Create the Cloud Function Trigger": ["onObjectFinalized", "firebase-functions/v2/storage"],
+    "Create the \"Place\" Detail Page": ["/places/[placeId]"],
+    "Implement the \"Holistic\" Data Fetcher": ["/api/places/[placeId]/route.ts", "Enforce Wholeness"],
+    "Develop Visualization Components": ["src/components/place-detail-view.tsx"],
+    "Implement the Map View": ["src/components/map.tsx", "mapbox-gl"],
+    "Implement Firestore Security Rules": ["firestore.rules", "allow write: if false;"],
+    // Tier 2
+    "Develop the Genkit Synthesis Flow": ["src/ai/flows/story-flow.ts"],
+    "Mandate Potential-Based Framing": ["Latent Potential"],
+    "Save the Story": ["storyOfPlace"],
+    "Implement the Story Display UI": ["src/components/story-panel.tsx"],
+    "Engineer for Collaboration": ["src/components/feedback-panel.tsx"],
+    "Create Feedback Backend": ["/api/feedback/route.ts"],
+    "Update User Model": ["role"],
+    "Refine Security Rules": ["request.auth.token.admin", "hasOnly(['displayName'])"],
+    // Tier 3
+    "Develop Simulation Input UI": ["<simulation-input-form-placeholder>"],
+    "Implement Simulation Backend": ["<simulation-backend-placeholder>"],
+    "Create Results Visualization UI": ["<simulation-results-chart-placeholder>"],
+    "Develop Constraint Definition UI": ["<constraint-definition-ui-placeholder>"],
+    "Create Generative Design AI Flow": ["<generative-design-flow-placeholder>"],
 };
 
 
 /**
  * Recursively scans specified directories and files to build a searchable string of all application code.
+ * Excludes documentation and scripts to prevent self-auditing.
  * @param paths An array of directory or file paths to scan.
  * @returns A promise that resolves to the combined content of all files.
  */
@@ -52,20 +77,22 @@ async function scanCodebase(paths: string[]): Promise<string> {
             const entries = await fs.readdir(p, { withFileTypes: true });
             for (const entry of entries) {
                 const fullPath = path.join(p, entry.name);
-                // Recurse into subdirectories, avoiding specified exclusions
                 if (entry.isDirectory()) {
+                    // EXCLUSION LOGIC: Skip node_modules, docs, and scripts
                     if (entry.name !== 'node_modules' && entry.name !== '.next' && entry.name !== 'docs' && entry.name !== 'scripts') {
                         content += await scanCodebase([fullPath]);
                     }
                 } else if (/\.(ts|tsx|sh|md|json)$/.test(entry.name)) {
-                    content += await fs.readFile(fullPath, 'utf-8');
+                     // Ensure we are not reading from excluded parent directories
+                    if (!fullPath.includes('node_modules') && !fullPath.includes('.next') && !fullPath.includes('docs') && !fullPath.includes('scripts')) {
+                        content += await fs.readFile(fullPath, 'utf-8');
+                    }
                 }
             }
         } else if (stats.isFile()) {
             content += await fs.readFile(p, 'utf-8');
         }
     } catch(e) {
-        // Log if a path doesn't exist, but don't stop the whole process.
         console.warn(`[Code Scanner] Warning: Could not read path ${p}. It may not exist yet.`);
     }
   }
@@ -81,59 +108,94 @@ async function generateRoadmapReport() {
   console.log('    RDI PLATFORM - REGENERATIVE ROADMAP STATUS   ');
   console.log('=================================================\n');
 
-  const roadmapPath = path.join(process.cwd(), 'docs', 'DEVELOPMENT_ROADMAP.md');
+  const roadmapPath = path.join(process.cwd(), 'docs', 'Development Roadmap: The RDI Platform.md');
   const roadmapContent = await fs.readFile(roadmapPath, 'utf-8');
 
-  console.log('[Agent] Scanning application source code...');
+  console.log('[Agent] Scanning application source code (src/, functions/, firestore.rules)...');
   const appCodeDirs = [
       path.join(process.cwd(), 'src'), 
       path.join(process.cwd(), 'functions'),
-      path.join(process.cwd(), 'firestore.rules') // Include specific root files
+      path.join(process.cwd(), 'firestore.rules')
   ];
   const codebaseText = await scanCodebase(appCodeDirs);
   console.log('[Agent] Codebase scan complete.\n');
 
-  const tiers = roadmapContent.split('---');
+  const tiers = roadmapContent.split('### **Tier');
 
   for (const tierText of tiers) {
     if (!tierText.trim()) continue;
 
-    const tierTitleMatch = tierText.match(/### \*\*(.*)\*\*/);
-    const tierTitle = tierTitleMatch ? tierTitleMatch[1] : 'Unknown Tier';
-
-    const items: RoadmapItem[] = [];
-    const itemRegex = /- \[ \] (.*)/g;
-    let match;
-    while ((match = itemRegex.exec(tierText)) !== null) {
-      const itemText = match[1].trim();
-      let isDone = false;
-
-      // Find the corresponding evidence key from our map
-      const evidenceKey = Object.keys(evidenceMap).find(key => itemText.includes(key));
-      
-      if (evidenceKey) {
-        const evidenceItems = evidenceMap[evidenceKey];
-        // CORRECTED LOGIC: Check if *at least one* evidence item is present in the codebase.
-        const someEvidenceFound = evidenceItems.some(evidence => codebaseText.includes(evidence));
-        if (someEvidenceFound) {
-          isDone = true;
-        }
-      }
-
-      items.push({
-        text: itemText,
-        status: isDone ? '✅ DONE' : '[ ] PENDING',
-      });
-    }
+    const tierTitleMatch = tierText.match(/(.*?)\*\*/);
+    const tierTitle = tierTitleMatch ? `Tier${tierTitleMatch[1]}`.trim() : 'Unknown Tier';
     
-    if (items.length > 0) {
-      const doneCount = items.filter(item => item.status === '✅ DONE').length;
-      const completion = Math.round((doneCount / items.length) * 100);
+    const tasks: MainTask[] = [];
+    const taskRegex = /\*\*\[ \] \d+\. (.*?)\*\*/g;
+    
+    const mainTaskBlocks = tierText.split(/\*\*\[ \] \d+\./).slice(1);
+
+    mainTaskBlocks.forEach(block => {
+        const titleMatch = block.match(/(.*?)\*\*/);
+        if (!titleMatch) return;
+        const mainTaskTitle = titleMatch[1].trim();
+
+        const subTasks: SubTask[] = [];
+        const subTaskRegex = /\*   \*\*\[ \] ([a-z])\.(.*?):\*\*/g;
+        let subMatch;
+        while ((subMatch = subTaskRegex.exec(block)) !== null) {
+            const subTaskTitle = subMatch[2].trim();
+            const evidenceKey = Object.keys(evidenceMap).find(key => subTaskTitle.includes(key));
+            let isDone = false;
+            if (evidenceKey) {
+                const evidenceItems = evidenceMap[evidenceKey];
+                const someEvidenceFound = evidenceItems.some(evidence => codebaseText.includes(evidence));
+                if (someEvidenceFound) {
+                    isDone = true;
+                }
+            }
+            subTasks.push({
+                text: subTaskTitle,
+                status: isDone ? '✅ DONE' : '[ ] PENDING',
+            });
+        }
+        
+        let mainTaskCompletion = 0;
+        let mainTaskStatus: MainTask['status'] = '[ ] PENDING';
+
+        if(subTasks.length > 0) {
+            const doneCount = subTasks.filter(st => st.status === '✅ DONE').length;
+            mainTaskCompletion = Math.round((doneCount / subTasks.length) * 100);
+            if (mainTaskCompletion === 100) {
+                mainTaskStatus = '✅ DONE';
+            } else if (mainTaskCompletion > 0) {
+                mainTaskStatus = '📊 IN PROGRESS';
+            }
+        } else {
+            const evidenceKey = Object.keys(evidenceMap).find(key => mainTaskTitle.includes(key));
+            if (evidenceKey) {
+                 const evidenceItems = evidenceMap[evidenceKey];
+                 const someEvidenceFound = evidenceItems.some(evidence => codebaseText.includes(evidence));
+                 if(someEvidenceFound) {
+                     mainTaskCompletion = 100;
+                     mainTaskStatus = '✅ DONE';
+                 }
+            }
+        }
+
+        tasks.push({ text: mainTaskTitle, status: mainTaskStatus, subTasks, completion: mainTaskCompletion });
+    });
+    
+    if (tasks.length > 0) {
+      const totalCompletion = tasks.reduce((sum, task) => sum + task.completion, 0);
+      const tierCompletion = Math.round(totalCompletion / tasks.length);
 
       console.log(`--- ${tierTitle} ---`);
-      console.log(`[ COMPLETION: ${completion}% ]`);
-      items.forEach(item => {
-        console.log(`${item.status}: ${item.text}`);
+      console.log(`[ COMPLETION: ${tierCompletion}% ]`);
+      tasks.forEach((task, index) => {
+          const statusIcon = task.status === '✅ DONE' ? '✅' : task.status === '📊 IN PROGRESS' ? '📊' : '[ ]';
+          console.log(`${statusIcon} ${index + 1}. ${task.text} (${task.completion}%)`);
+          task.subTasks.forEach(subTask => {
+              console.log(`    ${subTask.status === '✅ DONE' ? '✅' : '[ ]'} ${subTask.text}`);
+          });
       });
       console.log('');
     }
