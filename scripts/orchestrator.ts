@@ -4,8 +4,9 @@
  * This script can either:
  * 1. Generate new code from a task description.
  * 2. Audit and correct an existing file.
+ * It now features a robust journaling system to log every step of the process.
  */
-import 'dotenv/config'; // CRITICAL: Load environment variables at the very start.
+import 'dotenv/config';
 'use server';
 
 import { generateCode } from '../src/ai/flows/generateCode';
@@ -14,6 +15,18 @@ import { retrieveRelevantContext } from '../src/ai/knowledge-base';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
+/**
+ * Sanitizes a string to be safe for use as a filename.
+ * @param text The input string.
+ * @returns A sanitized string.
+ */
+function sanitizeForFilename(text: string): string {
+    return text
+        .toLowerCase()
+        .replace(/\s+/g, '-') // Replace spaces with hyphens
+        .replace(/[^a-z0-9-]/g, '') // Remove non-alphanumeric characters except hyphens
+        .slice(0, 50); // Truncate to a reasonable length
+}
 
 /**
  * The main function for the Orchestrator Agent.
@@ -21,16 +34,29 @@ import * as path from 'path';
  * @param outputFilePath The path to write the final code to.
  */
 async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: string) {
+  // --- Journaling Setup ---
+  const logDir = path.join(process.cwd(), 'logs', 'orchestrator');
+  await fs.mkdir(logDir, { recursive: true });
+  
+  const timestamp = new Date().toISOString().replace(/:/g, '-').replace(/\..+/, '');
+  const sanitizedTask = sanitizeForFilename(taskOrFilePath);
+  const logFileName = `${timestamp}-${sanitizedTask}.md`;
+  const logFilePath = path.join(logDir, logFileName);
+  
+  const appendToJournal = (content: string) => fs.appendFile(logFilePath, content + '\n\n');
+  
+  await appendToJournal(`# Orchestrator Run Log: ${new Date().toLocaleString()}`);
+
   let initialCode: string | undefined;
   let taskDescription: string;
   const isAuditMode = await fs.stat(taskOrFilePath).then(s => s.isFile()).catch(() => false);
 
   if (isAuditMode) {
+    taskDescription = `Audit and correct the following code file: ${taskOrFilePath}`;
     console.log(`[Orchestrator] Starting in "Audit & Correct" mode for file: ${taskOrFilePath}`);
     initialCode = await fs.readFile(taskOrFilePath, 'utf-8');
-    taskDescription = `Audit and correct the following code file: ${taskOrFilePath}`;
     if (!outputFilePath) {
-      outputFilePath = taskOrFilePath; // Overwrite the original file if no output is specified
+      outputFilePath = taskOrFilePath;
     }
   } else {
     taskDescription = taskOrFilePath;
@@ -40,6 +66,8 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
         process.exit(1);
     }
   }
+  
+  await appendToJournal(`## Task Description\n\n\`\`\`\n${taskDescription}\n\`\`\``);
 
   let currentCode: string | undefined = initialCode;
   let auditReport: string | undefined;
@@ -47,35 +75,34 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
 
   for (let attempt = 1; attempt <= 3; attempt++) {
     console.log(`\n[Orchestrator] Attempt #${attempt}`);
+    await appendToJournal(`## Attempt #${attempt}`);
 
-    // If it's the first attempt in generation mode, generate the initial code.
     if (attempt === 1 && !isAuditMode) {
         const relevantContextChunks = await retrieveRelevantContext(taskDescription);
         console.log(`[Orchestrator] Retrieved ${relevantContextChunks.length} context chunks for initial generation.`);
         
-        // DEBUG LOGGING: Log retrieved context
-        console.log('\n--- [DEBUG] CONTEXT RETRIEVED ---');
-        relevantContextChunks.forEach((chunk, i) => {
-            console.log(`Chunk ${i + 1}: ${chunk.substring(0, 100).replace(/\n/g, ' ')}...`);
-        });
-        console.log('---------------------------------\n');
-
+        await appendToJournal(`### Retrieved Context (RAG)\n\n${relevantContextChunks.map((c, i) => `**Chunk ${i+1}:**\n\`\`\`\n${c}\n\`\`\``).join('\n\n')}`);
+        
         console.log('[Orchestrator] Calling Generator Agent for first draft...');
         currentCode = await generateCode({ taskDescription, context: relevantContextChunks });
+        await appendToJournal(`### Generated Code (Attempt #${attempt})\n\n\`\`\`typescript\n${currentCode}\n\`\`\``);
     }
 
     if (!currentCode) {
-        console.error('[Orchestrator] No code available to critique. Aborting.');
+        const errorMsg = '[Orchestrator] No code available to critique. Aborting.';
+        console.error(errorMsg);
+        await appendToJournal(`## Final Outcome\n\n**STATUS:** ❌ FAIL\n**REASON:** ${errorMsg}`);
         return;
     }
 
-    // Step 2: Critique the current code
     console.log('[Orchestrator] Submitting code for critique...');
     const projectConstitution = await fs.readFile(path.join(process.cwd(), 'CONTEXT.md'), 'utf-8');
     const rawCritiqueReport = await critiqueCode({
       codeToCritique: currentCode,
       projectConstitution: projectConstitution,
     });
+    
+    await appendToJournal(`### Critique Report (Attempt #${attempt})\n\n${rawCritiqueReport}`);
     
     const verdictMatch = rawCritiqueReport.match(/\\*\\*Verdict:\\*\\*\\s*(PASS|FAIL)/i);
     verdict = (verdictMatch ? verdictMatch[1].toUpperCase() : 'FAIL') as 'PASS' | 'FAIL';
@@ -88,63 +115,38 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
         break; 
     } else {
         console.log('[Orchestrator] ❌ Code failed audit. Preparing for correction loop...');
-        console.log('Issues Found:\n', auditReport);
-        
         const relevantContextChunks = await retrieveRelevantContext(taskDescription);
         
-        // DEBUG LOGGING: Log the exact correction prompt
-        const correctionPromptForLogging = `
-        You are an expert software engineer. The previous code you generated failed its quality and security audit.
-        Your task is to rewrite the code to address every issue identified in the audit report below.
-        You must not introduce any new functionality or deviate from the original requirements.
-        The rewritten code must be of the highest quality and designed to pass the audit.
-
-        ORIGINAL TASK:
-        ---
-        ${taskDescription}
-        ---
+        const correctionPrompt = `
+          You are an expert software engineer... (Correction prompt content)
+          FAILED CODE: ${currentCode}
+          AUDIT REPORT: ${auditReport}
+        `; // Simplified for brevity in this final version, full prompt is used by the flow.
         
-        RELEVANT CONTEXT FROM KNOWLEDGE BASE:
-        ---
-        ${relevantContextChunks.join('\n---\n')}
-        ---
+        await appendToJournal(`### Correction Prompt (Attempt #${attempt + 1})\n\n\`\`\`\n${correctionPrompt}\n\`\`\``);
 
-        FAILED CODE:
-        ---
-        ${currentCode}
-        ---
-
-        AUDIT REPORT:
-        ---
-        ${auditReport}
-        ---
-
-        Now, provide the corrected and improved version of the code. Only output the raw code, with no explanations or markdown.
-      `;
-        console.log('\n--- [DEBUG] CORRECTION PROMPT ---');
-        console.log(correctionPromptForLogging);
-        console.log('---------------------------------\n');
-        
         currentCode = await generateCode({
             taskDescription,
             context: relevantContextChunks,
             failedCode: currentCode,
             critique: auditReport,
         });
+        await appendToJournal(`### Generated Code (Attempt #${attempt + 1})\n\n\`\`\`typescript\n${currentCode}\n\`\`\``);
     }
   }
 
   if (verdict === 'PASS' && currentCode) {
-    // DEBUG LOGGING: Log the final passing code
-    console.log('\n--- [DEBUG] FINAL PASSING CODE ---');
-    console.log(currentCode);
-    console.log('----------------------------------\n');
+    await appendToJournal(`## Final Outcome\n\n**STATUS:** ✅ PASS\n**File Path:** \`${outputFilePath}\``);
+    await appendToJournal(`## Final Code\n\n\`\`\`typescript\n${currentCode}\n\`\`\``);
     
     console.log(`[Orchestrator] Writing final, audited code to ${outputFilePath}`);
     await fs.writeFile(outputFilePath!, currentCode);
-    console.log('[Orchestrator] ✅ Development cycle complete.');
+    console.log(`[Orchestrator] ✅ Development cycle complete. See full log at: ${logFilePath}`);
   } else {
-    console.error(`\n[Orchestrator] ❌ Failed to produce passing code after 3 attempts.`);
+    const finalMessage = `❌ Failed to produce passing code after 3 attempts.`;
+    await appendToJournal(`## Final Outcome\n\n**STATUS:** ❌ FAIL\n**REASON:** ${finalMessage}`);
+    console.error(`\n[Orchestrator] ${finalMessage}`);
+    console.log(`[Orchestrator] See full log of failed attempts at: ${logFilePath}`);
     process.exit(1);
   }
 }
