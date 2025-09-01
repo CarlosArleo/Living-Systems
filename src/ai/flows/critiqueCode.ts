@@ -5,7 +5,7 @@
  */
 'use server';
 
-import { ai } from '@/ai/genkit';
+import { ai } from '../genkit';
 import { googleAI } from '@genkit-ai/googleai';
 import { z } from 'zod';
 
@@ -58,7 +58,7 @@ FAIL
       Analyze the provided CODE TO CRITIQUE against the following five criteria:
 
       1.  **Correctness & Logic:** Does the code correctly and completely implement the requested logic? Are there any bugs, race conditions, or logical fallacies?
-      2.  **Adherence to Constitution:** Does the code violate any architectural patterns, coding standards, or explicit directives defined in the CONSTITUTION?
+      2.  **Adherence to Constitution:** Does the code violate any architectural patterns, coding standards, or explicit directives defined in the CONSTITUTION? (SPECIAL CHECK: If the code imports from a '.prompt' file, ensure that the corresponding file being created is NOT a TypeScript file.)
       3.  **Security Vulnerabilities:** Perform a security scan. Look for common vulnerabilities such as lack of input validation, potential for injection attacks, insecure direct object references, or improper handling of secrets.
       4.  **Performance Bottlenecks:** Identify any inefficient code patterns that could lead to poor performance or excessive cost at scale.
       5.  **Readability & Maintainability:** Is the code clear, well-commented (explaining the 'why'), and idiomatic for the language?
