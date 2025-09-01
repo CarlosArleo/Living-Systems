@@ -33,14 +33,14 @@ interface RoadmapTier {
 const evidenceMap: Record<string, string[]> = {
     // Tier 1
     "Implement UI Components": ["src/app/login/page.tsx", "src/components/user-profile.tsx"],
-    "Implement Backend Logic": ["firebase.auth()", "firebase-admin", "users"],
+    "Implement Backend Logic": ["firebase-admin", "users"],
     "Implement Protected Routes": ["next/navigation", "useRouter"],
     "Create Document Upload UI": ["src/components/upload-dialog.tsx"],
     "Develop Backend Upload Handler": ["onObjectFinalized", "firebase-functions/v2/storage"],
     "Develop the Genkit Analysis Flow": ["src/ai/flows/processing.ts", "processUploadedDocument"],
     "Create the Cloud Function Trigger": ["onObjectFinalized", "firebase-functions/v2/storage"],
-    "Create the \"Place\" Detail Page": ["/places/[placeId]"],
-    "Implement the \"Holistic\" Data Fetcher": ["/api/places/[placeId]/route.ts", "Enforce Wholeness"],
+    "Create the \"Place\" Detail Page": ["src/app/places/[placeId]/page.tsx"],
+    "Implement the \"Holistic\" Data Fetcher": ["src/app/api/places/[placeId]/route.ts", "Enforce Wholeness"],
     "Develop Visualization Components": ["src/components/place-detail-view.tsx"],
     "Implement the Map View": ["src/components/map.tsx", "mapbox-gl"],
     "Implement Firestore Security Rules": ["firestore.rules", "allow write: if false;"],
@@ -50,7 +50,7 @@ const evidenceMap: Record<string, string[]> = {
     "Save the Story": ["storyOfPlace"],
     "Implement the Story Display UI": ["src/components/story-panel.tsx"],
     "Engineer for Collaboration": ["src/components/feedback-panel.tsx"],
-    "Create Feedback Backend": ["/api/feedback/route.ts"],
+    "Create Feedback Backend": ["src/app/api/feedback/route.ts"],
     "Update User Model": ["role"],
     "Refine Security Rules": ["request.auth.token.admin", "hasOnly(['displayName'])"],
     // Tier 3
