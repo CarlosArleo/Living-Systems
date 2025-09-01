@@ -45,11 +45,13 @@ export const generateCode = ai.defineFlow(
     if ('failedCode' in input && input.failedCode && input.critique) {
       // This is a correction prompt.
       console.log('[GeneratorAgent] Received correction request.');
+      // THE FIX: This prompt is now much more explicit and forceful.
       prompt = `
-        You are an expert software engineer. The previous code you generated failed its quality and security audit.
-        Your task is to rewrite the code to address every issue identified in the audit report below.
-        You must not introduce any new functionality or deviate from the original requirements.
-        The rewritten code must be of the highest quality and designed to pass the audit.
+        You are an expert software engineer in a "Code Correction" workflow. Your previous attempt to write code was audited and FAILED.
+        Your primary and ONLY goal is to fix the issues detailed in the provided "AUDIT REPORT".
+
+        You MUST address every single point in the audit report. Do not re-introduce old code that was already flagged as flawed.
+        The audit report is your source of truth. The user's original task description is provided for context, but your priority is to satisfy the audit.
 
         ORIGINAL TASK:
         ---
@@ -61,17 +63,18 @@ export const generateCode = ai.defineFlow(
         ${input.context.join('\n---\n')}
         ---
 
-        FAILED CODE:
+        THE FAILED CODE YOU WROTE PREVIOUSLY:
         ---
         ${input.failedCode}
         ---
 
-        AUDIT REPORT:
+        THE AUDIT REPORT DETAILING YOUR MISTAKES:
         ---
         ${input.critique}
         ---
 
-        Now, provide the corrected and improved version of the code. Only output the raw code, with no explanations or markdown.
+        Now, provide the rewritten, corrected, and improved version of the code that fixes all the issues listed in the audit report.
+        Only output the raw code, with no explanations or markdown.
       `;
     } else {
       // This is an initial generation prompt.
