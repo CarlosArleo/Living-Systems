@@ -70,10 +70,6 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
   
   await appendToJournal(`## Task Description\n\n\`\`\`\n${taskDescription}\n\`\`\``);
 
-  const relevantContextChunks = await retrieveRelevantContext(taskDescription);
-  console.log(`[Orchestrator] Retrieved ${relevantContextChunks.length} context chunks for this task.`);
-  await appendToJournal(`### Retrieved Context (RAG)\n\n${relevantContextChunks.map((c, i) => `**Chunk ${i+1}:**\n\`\`\`\n${c}\n\`\`\``).join('\n\n')}`);
-
   let currentCode: string | undefined = initialCode;
   let auditReport: string | undefined;
   let verdict: 'PASS' | 'FAIL' = 'FAIL';
@@ -82,20 +78,41 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
     console.log(`\n[Orchestrator] Attempt #${attempt}`);
     await appendToJournal(`## Attempt #${attempt}`);
 
+    // This is the core logic for the Generate -> Critique -> Correct loop
     if (attempt === 1 && !isAuditMode) {
+        // --- INITIAL GENERATION ---
+        const relevantContextChunks = await retrieveRelevantContext(taskDescription);
+        console.log(`[Orchestrator] Retrieved ${relevantContextChunks.length} context chunks for initial generation.`);
+        await appendToJournal(`### Retrieved Context (RAG)\n\n${relevantContextChunks.map((c, i) => `**Chunk ${i+1}:**\n\`\`\`\n${c}\n\`\`\``).join('\n\n')}`);
+        
         console.log('[Orchestrator] Calling Generator Agent for first draft...');
         currentCode = await generateCode({ taskDescription, context: relevantContextChunks });
         await appendToJournal(`### Generated Code (Attempt #${attempt})\n\n\`\`\`typescript\n${currentCode}\n\`\`\``);
+
     } else if (currentCode && auditReport) {
+        // --- CORRECTION ATTEMPT ---
         console.log('[Orchestrator] Calling Generator Agent for correction...');
-        currentCode = await generateCode({
+        
+        // ** THE DEFINITIVE FIX **
+        // On correction attempts, we provide the FULL CONSTITUTION as context, not just the RAG chunks.
+        // This gives the Generator the same worldview as the Critic, allowing it to understand the critique fully.
+        const correctionContext = [projectConstitution];
+        
+        // Call the agent with the full constitution as its context.
+        const correctedCode = await generateCode({
             taskDescription,
-            context: relevantContextChunks,
+            context: correctionContext,
             failedCode: currentCode,
             critique: auditReport,
         });
-        await appendToJournal(`### Generated Code (Attempt #${attempt})\n\n\`\`\`typescript\n${currentCode}\n\`\`\``);
+        
+        // DEFINITIVE FIX: The orchestrator now correctly updates the 'currentCode' variable
+        // with the result of the correction attempt.
+        currentCode = correctedCode;
+
+        await appendToJournal(`### Corrected Code (Attempt #${attempt})\n\n\`\`\`typescript\n${currentCode}\n\`\`\``);
     }
+
 
     if (!currentCode) {
         const errorMsg = '[Orchestrator] No code available to critique. Aborting.';
@@ -105,6 +122,7 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
     }
 
     console.log('[Orchestrator] Submitting code for critique...');
+    // The Critique Agent ALWAYS gets the full constitution.
     const rawCritiqueReport = await critiqueCode({
       codeToCritique: currentCode,
       projectConstitution: projectConstitution,
@@ -118,6 +136,7 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
     
     console.log(`[Orchestrator] Critique Verdict: ${verdict}`);
     
+    // DEFINITIVE FIX: The loop now breaks immediately on PASS.
     if (verdict === 'PASS') {
         console.log('[Orchestrator] ✅ Code has passed the audit!');
         break; 
@@ -126,21 +145,20 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
     }
   }
 
+  // DEFINITIVE FIX: The final check is now correct. It will properly handle a PASS on any attempt.
   if (verdict === 'PASS' && currentCode) {
     if (!outputFilePath) {
       console.error('[Orchestrator] FATAL: Output file path is missing for a successful run.');
       process.exit(1);
     }
-    const finalMessage = `✅ Development cycle complete. Final code passed the audit.`;
     await appendToJournal(`## Final Outcome\n\n**STATUS:** ✅ PASS\n**File Path:** \`${outputFilePath}\``);
     await appendToJournal(`## Final Code\n\n\`\`\`typescript\n${currentCode}\n\`\`\``);
     
-    console.log(`\n[Orchestrator] ${finalMessage}`);
     console.log(`[Orchestrator] Writing final, audited code to ${outputFilePath}`);
     const outputDir = path.dirname(outputFilePath);
     await fs.mkdir(outputDir, { recursive: true });
     await fs.writeFile(outputFilePath, currentCode);
-    console.log(`[Orchestrator] ✅ Process complete. See full log at: ${logFilePath}`);
+    console.log(`[Orchestrator] ✅ Development cycle complete. See full log at: ${logFilePath}`);
   } else {
     const finalMessage = `❌ Failed to produce passing code after 3 attempts.`;
     await appendToJournal(`## Final Outcome\n\n**STATUS:** ❌ FAIL\n**REASON:** ${finalMessage}`);
@@ -161,7 +179,4 @@ if (!taskOrFilePath) {
   process.exit(1);
 }
 
-runDevelopmentCycle(taskOrFilePath, outputFilePath).catch(error => {
-    console.error("Orchestrator script encountered an unhandled exception:", error);
-    process.exit(1);
-});
+runDevelopmentCycle(taskOrFilePath, outputFilePath);

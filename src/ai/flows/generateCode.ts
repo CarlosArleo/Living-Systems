@@ -28,62 +28,46 @@ type FlowInput = z.infer<typeof FlowInputSchema>;
 
 /**
  * Robust function to extract code from LLM response, handling various formatting inconsistencies.
- * This is the upgraded, more resilient version.
  * @param responseText The full text output from the LLM.
  * @param isCorrection A boolean indicating if this is a correction attempt.
  * @returns The cleaned, extracted code string.
  */
 function extractCodeFromResponse(responseText: string, isCorrection: boolean): string {
   // For initial generation, the entire response is the code.
+  // Also handle cases where the generation might be wrapped in backticks
+  const initialGenMatch = responseText.match(/```(?:typescript|tsx|javascript|js)?\s*\n([\s\S]+?)\n```/);
   if (!isCorrection) {
-    // Also handle cases where the generation might be wrapped in backticks
-    const match = responseText.match(/```(?:typescript|tsx|javascript|js)?\s*\n([\s\S]+?)\n```/);
-    if (match && match[1]) {
-      return match[1].trim();
-    }
-    return responseText.trim();
+    return (initialGenMatch && initialGenMatch[1]) ? initialGenMatch[1].trim() : responseText.trim();
   }
 
   // For corrections, the model provides analysis headers. We must find the code block.
   const patterns = [
-    // Standard pattern with or without language specifier
     /###\s*CORRECTED CODE:\s*```(?:typescript|tsx?|javascript|js)?\s*\n([\s\S]+?)\n```/i,
-    // Variations in header casing or spacing
     /##\s*CORRECTED CODE:\s*```(?:typescript|tsx?|javascript|js)?\s*\n([\s\S]+?)\n```/i,
-    // Fallback for just finding a code block after some keywords
     /(?:corrected|fixed|updated)[\s\S]*?```(?:typescript|tsx?|javascript|js)?\s*\n([\s\S]+?)\n```/i,
-    // The most generic fallback: find the first multi-line code block.
     /```(?:typescript|tsx?|javascript|js)?\s*\n([\s\S]+?)\n```/,
   ];
 
   for (const pattern of patterns) {
     const match = responseText.match(pattern);
     if (match?.[1]?.trim()) {
-      console.log('[GeneratorAgent] Successfully extracted corrected code using pattern.');
       return match[1].trim();
     }
   }
 
-  // Last-ditch effort if no code block is found but the header exists.
-  // This handles cases where the LLM forgets the closing backticks.
   const headerMatch = responseText.match(/###?\s*(?:CORRECTED CODE|Corrected Code):\s*\n([\s\S]+?)(?:\n###|$)/i);
   if (headerMatch?.[1]) {
     const cleanCode = headerMatch[1]
-      .replace(/```[\s\S]*?\n/, '') // Remove opening backticks
-      .replace(/\n```[\s\S]*$/, '') // Remove closing backticks
+      .replace(/```[\s\S]*?\n/, '')
+      .replace(/\n```[\s\S]*$/, '')
       .trim();
 
     if (cleanCode) {
-      console.log('[GeneratorAgent] Extracted code using header fallback method.');
       return cleanCode;
     }
   }
 
-  console.error('[GeneratorAgent] CRITICAL: Failed to extract code from correction response.');
-  console.error('[GeneratorAgent] Response preview:', responseText.substring(0, 250) + '...');
-  console.error('[GeneratorAgent] Returning full response - this will likely cause audit failure.');
-  
-  // Return the raw response as a final fallback.
+  console.warn('[GeneratorAgent] Could not extract code from correction response. Returning full response.');
   return responseText.trim();
 }
 
@@ -108,39 +92,38 @@ export const generateCode = ai.defineFlow(
       console.log('[GeneratorAgent] Received correction request. Engaging Mandatory Compliance Protocol.');
 
       prompt = `
-# CRITICAL: CORRECTION MODE - NOT GENERATION MODE
+# CRITICAL: CORRECTION MODE
 
-You are in DEBUG AND FIX mode. Your ONLY objective is to fix specific violations.
+You are in DEBUG AND FIX mode. Your ONLY objective is to either fix specific violations or confirm a PASS.
 
-## FAILED CODE:
+## PREVIOUS CODE VERSION:
 \`\`\`typescript
 ${failedCode}
 \`\`\`
 
-## AUDIT VIOLATIONS (MANDATORY TO FIX):
+## AUDIT REPORT:
 ${critique}
 
 ## CORRECTION PROTOCOL:
-1.  **Analyze the Verdict**: First, look at the "Verdict" in the audit.
-2.  **Handle PASS Verdict**: If the verdict is "PASS", your task is simple: IGNORE all other instructions and output ONLY the original "FAILED CODE" exactly as it was provided to you, inside a "CORRECTED CODE" block. This indicates the code was already correct.
-3.  **Handle FAIL Verdict**: If the verdict is "FAIL", you MUST fix every single violation listed in the audit.
+1.  **Analyze the Verdict**: First, find the "Verdict:" line in the audit report.
+2.  **Handle PASS Verdict**: If the verdict is "PASS", your task is simple: **IGNORE all other instructions and output ONLY the original "PREVIOUS CODE VERSION" exactly as it was provided to you, inside a "CORRECTED CODE" block.** This indicates the code was already correct and requires no changes.
+3.  **Handle FAIL Verdict**: If the verdict is "FAIL", you MUST fix every single material violation listed in the audit.
     a.  **Plan**: For each violation, state exactly what code change is needed.
     b.  **Execute**: Make only those exact changes to the code. Do not add new features or refactor unrelated code.
-    c.  **Verify**: Mentally check that each violation is resolved by your changes.
 
 ## REQUIRED OUTPUT FORMAT:
 You MUST use this EXACT structure. Do not deviate:
 
 ### VIOLATION ANALYSIS:
-(Your analysis of the violations from the audit report.)
+(Your analysis of the violations from the audit report. If the verdict was PASS, state "No material violations found.")
 
 ### CORRECTED CODE:
 \`\`\`typescript
-[Your fixed code here - ONLY the code, no comments about changes]
+[Your fixed code here. If the verdict was PASS, this will be the identical to the PREVIOUS CODE VERSION.]
 \`\`\`
 
 ### VERIFICATION:
-(Your verification that the violations are resolved.)
+(Your verification that the violations are resolved, or confirmation that no changes were needed.)
 
 BEGIN CORRECTION PROTOCOL NOW.
       `;
@@ -173,28 +156,6 @@ BEGIN CORRECTION PROTOCOL NOW.
       config: { temperature: 0.1 },
     });
 
-    const extractedCode = extractCodeFromResponse(llmResponse.text, isCorrection);
-    
-    // Add sanity checks for the extracted code.
-    if (isCorrection) {
-      const { failedCode } = input; // safe due to narrowing above
-
-      if (extractedCode === failedCode) {
-        console.warn('[GeneratorAgent] WARNING: Corrected code appears identical to failed code.');
-      }
-      
-      if (
-        extractedCode.length < 50 &&
-        (!extractedCode.includes('import') &&
-          !extractedCode.includes('function') &&
-          !extractedCode.includes('const'))
-      ) {
-        console.warn('[GeneratorAgent] WARNING: Extracted code appears to be incomplete or malformed.');
-        console.warn('[GeneratorAgent] Extracted:', extractedCode.substring(0, 100) + '...');
-      }
-    }
-
-
-    return extractedCode;
+    return extractCodeFromResponse(llmResponse.text, isCorrection);
   }
 );
