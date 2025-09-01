@@ -3,10 +3,10 @@
  * This script runs periodically to check the health of the RDI Platform.
  */
 import * as admin from 'firebase-admin';
-import { projectConfig } from '../src/ai/config'; // Our centralized, validated config
+import { projectConfig } from '../../src/ai/config'; // CORRECTED PATH
 
 // Import the core logic function that YOU just perfected.
-import { checkFunctionLatency } from '../src/ai/monitoring/latency';
+import { checkFunctionLatency } from '../../src/ai/monitoring/latency'; // CORRECTED PATH
 
 // Initialize Firebase Admin SDK ONLY ONCE.
 admin.initializeApp({
