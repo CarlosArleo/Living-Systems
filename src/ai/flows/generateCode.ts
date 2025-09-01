@@ -44,37 +44,52 @@ export const generateCode = ai.defineFlow(
     // Check if this is a correction task by looking for the 'failedCode' property
     if ('failedCode' in input && input.failedCode && input.critique) {
       // This is a correction prompt.
-      console.log('[GeneratorAgent] Received correction request.');
-      // THE FIX: This prompt is now much more explicit and forceful.
+      console.log('[GeneratorAgent] Received correction request. Engaging Mandatory Compliance Protocol.');
+      
+      // THE DEFINITIVE FIX: Using the user-architected, robust correction prompt.
       prompt = `
-        You are an expert software engineer in a "Code Correction" workflow. Your previous attempt to write code was audited and FAILED.
-        Your primary and ONLY goal is to fix the issues detailed in the provided "AUDIT REPORT".
+# CRITICAL: CORRECTION MODE - NOT GENERATION MODE
 
-        You MUST address every single point in the audit report. Do not re-introduce old code that was already flagged as flawed.
-        The audit report is your source of truth. The user's original task description is provided for context, but your priority is to satisfy the audit.
+You are in DEBUG AND FIX mode. Your ONLY objective is to fix specific violations.
 
-        ORIGINAL TASK:
-        ---
-        ${input.taskDescription}
-        ---
-        
-        RELEVANT CONTEXT FROM KNOWLEDGE BASE:
-        ---
-        ${input.context.join('\n---\n')}
-        ---
+## FAILED CODE:
+\`\`\`
+${input.failedCode}
+\`\`\`
 
-        THE FAILED CODE YOU WROTE PREVIOUSLY:
-        ---
-        ${input.failedCode}
-        ---
+## AUDIT VIOLATIONS (MANDATORY TO FIX):
+${input.critique}
 
-        THE AUDIT REPORT DETAILING YOUR MISTAKES:
-        ---
-        ${input.critique}
-        ---
+## CORRECTION PROTOCOL:
+1. **ANALYZE**: List every specific violation mentioned in the audit.
+2. **PRIORITIZE**: Order violations by severity (constitutional violations first).
+3. **PLAN**: For each violation, state exactly what code change is needed.
+4. **EXECUTE**: Make those exact changes, no more, no less.
+5. **VERIFY**: Check that each violation is resolved.
 
-        Now, provide the rewritten, corrected, and improved version of the code that fixes all the issues listed in the audit report.
-        Only output the raw code, with no explanations or markdown.
+## MANDATORY CONSTRAINTS:
+- You MUST address EVERY SINGLE violation listed in the audit.
+- You MUST NOT make changes unrelated to the violations.
+- You MUST NOT reinterpret the original task - just fix what's broken.
+- If unsure about a fix, choose the most conservative approach that directly addresses the critique.
+
+## OUTPUT FORMAT:
+First provide your analysis and plan, then the corrected code, then your verification. Use this exact structure:
+
+### VIOLATION ANALYSIS:
+1. [List each specific violation from audit] → [What exact change is needed for each]
+2. [Violation 2] → [Change for violation 2]
+
+### CORRECTED CODE:
+\`\`\`typescript
+[Your fixed code here]
+\`\`\`
+
+### VERIFICATION:
+- [x] Violation 1 fixed by [describe the specific change you made].
+- [x] Violation 2 fixed by [describe the specific change you made].
+
+BEGIN CORRECTION PROTOCOL NOW.
       `;
     } else {
       // This is an initial generation prompt.
@@ -106,7 +121,17 @@ export const generateCode = ai.defineFlow(
       config: { temperature: 0.1 }, // Low temperature for more deterministic code
     });
 
-    return llmResponse.text;
+    // The new correction prompt includes analysis headers. We need to strip them
+    // to return only the pure code.
+    const responseText = llmResponse.text;
+    const codeMatch = responseText.match(/### CORRECTED CODE:\s*```(?:typescript|tsx|)\n([\s\S]+)\n```/);
+
+    if (codeMatch && codeMatch[1]) {
+        // If it was a correction, return just the code block.
+        return codeMatch[1].trim();
+    } else {
+        // Otherwise, it was an initial generation, return the whole text.
+        return responseText.trim();
+    }
   }
 );
-    
