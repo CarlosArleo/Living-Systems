@@ -1,5 +1,5 @@
 /**
- * @fileoverview A robust script to run all major Genkit flows with test data.
+ * @fileOverview A robust script to run all major Genkit flows with test data.
  * This provides a simple way to validate that all flows are functioning correctly.
  * To run: `npx tsx src/ai/flows/run-all-tests.ts`
  */
@@ -29,7 +29,12 @@ async function runTests() {
   try {
     const input = "This is a test sentence.";
     const output = await embedText(input);
-    testResults.push({ name: 'embedText', status: '✅ PASS', details: `Returned embedding of length ${output.length}` });
+    const pass = Array.isArray(output) && output.length > 0 && typeof output[0] === 'number';
+    testResults.push({ 
+      name: 'embedText', 
+      status: pass ? '✅ PASS' : '❌ FAIL', 
+      details: pass ? `Returned embedding of length ${output.length}` : 'Output was not a valid embedding array.' 
+    });
   } catch (e: any) {
     testResults.push({ name: 'embedText', status: '❌ FAIL', details: e.message });
   }
@@ -38,7 +43,12 @@ async function runTests() {
   try {
     const input = "Create a React component that fetches user data.";
     const output = await generateMasterPrompt(input);
-    testResults.push({ name: 'generateMasterPrompt', status: '✅ PASS', details: `Generated prompt of length ${output.length}` });
+    const pass = typeof output === 'string' && output.length > 50;
+    testResults.push({ 
+      name: 'generateMasterPrompt', 
+      status: pass ? '✅ PASS' : '❌ FAIL', 
+      details: pass ? `Generated prompt of length ${output.length}` : 'Generated prompt was too short or not a string.'
+    });
   } catch (e: any) {
     testResults.push({ name: 'generateMasterPrompt', status: '❌ FAIL', details: e.message });
   }
@@ -50,9 +60,12 @@ async function runTests() {
         projectConstitution: 'All functions must have TypeScript types.'
     };
     const output = await critiqueCode(input);
-    const status = output.includes('FAIL') ? '✅ PASS' : '❌ FAIL';
-    const details = status === '✅ PASS' ? 'Correctly identified flaws.' : 'Failed to identify flaws.';
-    testResults.push({ name: 'critiqueCode', status, details });
+    const pass = output.includes('FAIL');
+    testResults.push({ 
+        name: 'critiqueCode', 
+        status: pass ? '✅ PASS' : '❌ FAIL', 
+        details: pass ? 'Correctly identified flaws and returned a FAIL verdict.' : 'Failed to identify flaws or return a FAIL verdict.'
+    });
   } catch (e: any) {
     testResults.push({ name: 'critiqueCode', status: '❌ FAIL', details: e.message });
   }
@@ -64,9 +77,12 @@ async function runTests() {
           context: ["All functions must use TypeScript and have JSDoc comments."],
       };
       const output = await generateCode(input);
-      const status = output.includes('function add(a: number, b: number): number') ? '✅ PASS' : '❌ FAIL';
-      const details = status === '✅ PASS' ? 'Generated valid TypeScript code.' : 'Generated invalid code.';
-      testResults.push({ name: 'generateCode (Initial)', status, details });
+      const pass = output.includes('function add(a: number, b: number): number');
+      testResults.push({ 
+        name: 'generateCode (Initial)', 
+        status: pass ? '✅ PASS' : '❌ FAIL', 
+        details: pass ? 'Generated plausible TypeScript code.' : 'Did not generate expected TypeScript code.'
+      });
   } catch (e: any) {
       testResults.push({ name: 'generateCode (Initial)', status: '❌ FAIL', details: e.message });
   }
@@ -79,6 +95,13 @@ async function runTests() {
     const paddedName = result.name.padEnd(maxNameLength);
     console.log(`${paddedName} | ${result.status.padEnd(8)} | ${result.details}`);
   });
+
+  const failures = testResults.filter(r => r.status === '❌ FAIL').length;
+  if (failures > 0) {
+    console.log(`\n🚨 Found ${failures} failing flow(s). Please review the details above.`);
+  } else {
+    console.log('\n🎉 All core flows passed the basic validation check!');
+  }
   console.log('--- ✅ End of Report ---');
 }
 
