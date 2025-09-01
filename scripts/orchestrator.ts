@@ -9,7 +9,7 @@ import 'dotenv/config';
 import { generateCode } from '../src/ai/flows/generateCode';
 import { correctCode } from '../src/ai/flows/correctCode'; 
 import { critiqueCode } from '../src/ai/flows/critiqueCode';
-import { retrieveRelevantContext } from '../src/ai/knowledge-base';
+import { getRelevantContext } from '../src/ai/knowledge-base';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -70,14 +70,17 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
     if (attempt === 1 && !isAuditMode) {
         // --- INITIAL GENERATION ---
         console.log('[Orchestrator] Calling Generator Agent for first draft...');
-        const relevantContextChunks = await retrieveRelevantContext(taskDescription);
-        await appendToJournal(`### Retrieved Context (RAG)\n\n${relevantContextChunks.map((c, i) => `**Chunk ${i+1}:**\n\`\`\`\n${c}\n\`\`\``).join('\n\n')}`);
+        const relevantContextChunks = await getRelevantContext(taskDescription);
+        await appendToJournal(
+          `### Retrieved Context (RAG)\n\n${relevantContextChunks
+            .map((c: string, i: number) => `**Chunk ${i+1}:**\n\`\`\`\n${c}\n\`\`\``)
+            .join('\n\n')}`
+        );
         currentCode = await generateCode({ taskDescription, context: relevantContextChunks });
         await appendToJournal(`### Generated Code (Attempt #${attempt})\n\n\`\`\`typescript\n${currentCode}\n\`\`\``);
 
     } else if (currentCode && auditReport) {
         // --- CORRECTION ---
-        // UPDATED: Call the new, specialized correctCode agent
         console.log('[Orchestrator] Calling Debugging Agent for correction...');
         currentCode = await correctCode({
             failedCode: currentCode,
@@ -138,18 +141,25 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
   }
 }
 
-// --- Script Execution ---
-const taskOrFilePath = process.argv[2];
-const outputFilePath = process.argv[3];
+// --- Main Execution Block ---
+async function main() {
+  const taskOrFilePath = process.argv[2];
+  const outputFilePath = process.argv[3];
 
-if (!taskOrFilePath) {
-  console.error('Usage:');
-  console.error('  Generate: npx tsx scripts/orchestrator.ts "<task_description>" <output_file_path>');
-  console.error('  Audit:    npx tsx scripts/orchestrator.ts <path_to_existing_file> [<output_file_path>]');
-  process.exit(1);
-}
+  if (!taskOrFilePath) {
+    console.error('Usage:');
+    console.error('  Generate: npx tsx scripts/orchestrator.ts "<task_description>" <output_file_path>');
+    console.error('  Audit:    npx tsx scripts/orchestrator.ts <path_to_existing_file> [<output_file_path>]');
+    process.exit(1);
+  }
 
-runDevelopmentCycle(taskOrFilePath, outputFilePath).catch(err => {
+  try {
+    await runDevelopmentCycle(taskOrFilePath, outputFilePath);
+  } catch (err) {
     console.error('[Orchestrator] A fatal, unhandled exception occurred:', err);
     process.exit(1);
-});
+  }
+}
+
+// CORRECTED: Wrap the main call in an async function to handle promises correctly.
+main();

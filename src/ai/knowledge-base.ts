@@ -1,98 +1,133 @@
-
 /**
- * @fileOverview A utility for retrieving relevant context from the project's
- * knowledge base using vector embeddings and cosine similarity.
+ * @fileOverview Retrieves relevant context from the project's knowledge base.
+ * Fallback implementation uses TF-IDF + cosine similarity (no external API).
  */
 'use server';
 
-import { ai } from '@/ai/genkit';
-import { googleAI } from '@genkit-ai/googleai';
 import { promises as fs } from 'fs';
 import path from 'path';
 
 type KnowledgeChunk = {
   text: string;
-  embedding: number[];
+  // embedding?: number[];  // Ignored by this fallback; OK if present in file
 };
 
 let knowledgeBase: KnowledgeChunk[] | null = null;
 
-/**
- * Loads the knowledge base from the JSON file into memory.
- * Caches the result to avoid repeated file reads.
- */
 async function loadKnowledgeBase(): Promise<KnowledgeChunk[]> {
-  if (knowledgeBase) {
-    return knowledgeBase;
-  }
+  if (knowledgeBase) return knowledgeBase;
 
   const filePath = path.join(process.cwd(), 'rag-memory.json');
   try {
     const fileContent = await fs.readFile(filePath, 'utf-8');
-    knowledgeBase = JSON.parse(fileContent);
-    return knowledgeBase!;
-  } catch (error) {
-    console.error('Failed to load or parse rag-memory.json:', error);
-    // Return an empty array on error to prevent crashes
-    return [];
+    const parsed = JSON.parse(fileContent);
+    if (!Array.isArray(parsed)) {
+      console.warn('[KnowledgeBase] rag-memory.json is not an array; using empty base.');
+      knowledgeBase = [];
+      return knowledgeBase;
+    }
+    // Normalize to { text }
+    knowledgeBase = parsed
+      .map((item: any) => ({ text: String(item?.text ?? '') }))
+      .filter((x: KnowledgeChunk) => x.text.trim().length > 0);
+    return knowledgeBase;
+  } catch (err) {
+    console.error('[KnowledgeBase] Failed to load rag-memory.json:', err);
+    knowledgeBase = [];
+    return knowledgeBase;
   }
 }
 
-/**
- * Calculates the cosine similarity between two vectors.
- * @param vecA The first vector.
- * @param vecB The second vector.
- * @returns The cosine similarity score.
- */
-function cosineSimilarity(vecA: number[], vecB: number[]): number {
-  const dotProduct = vecA.reduce((sum, a, i) => sum + a * vecB[i], 0);
-  const magnitudeA = Math.sqrt(vecA.reduce((sum, val) => sum + val * val, 0));
-  const magnitudeB = Math.sqrt(vecB.reduce((sum, val) => sum + val * val, 0));
+// --- Minimal TF-IDF implementation (no deps) ---
 
-  if (magnitudeA === 0 || magnitudeB === 0) {
-    return 0;
-  }
-
-  return dotProduct / (magnitudeA * magnitudeB);
+function tokenize(s: string): string[] {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]+/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
 }
 
-/**
- * Retrieves the most relevant text chunks from the knowledge base for a given query.
- *
- * @param taskDescription The user's query or task description.
- * @param topK The number of top results to return.
- * @returns A promise that resolves to an array of the most relevant text chunks.
- */
-export async function retrieveRelevantContext(
-  taskDescription: string,
-  topK: number = 5
-): Promise<string[]> {
-  const base = await loadKnowledgeBase();
-  if (base.length === 0) {
-    console.warn('Knowledge base is empty. Cannot retrieve context.');
-    return [];
-  }
+type Vocab = Map<string, number>; // term -> column index
 
-  // DEFINITIVE FIX: The `ai.embed` function returns an array of embeddings.
-  // We need to access the first element and its `embedding` property.
-  const embeddingResponse = await ai.embed({
-      embedder: googleAI.embedder('text-embedding-004'),
-      content: taskDescription,
+function buildVocab(docs: string[]): Vocab {
+  const vocab = new Map<string, number>();
+  for (const doc of docs) {
+    for (const term of new Set(tokenize(doc))) {
+      if (!vocab.has(term)) vocab.set(term, vocab.size);
+    }
+  }
+  return vocab;
+}
+
+function tfVector(doc: string, vocab: Vocab): Float64Array {
+  const vec = new Float64Array(vocab.size);
+  const terms = tokenize(doc);
+  for (const t of terms) {
+    const idx = vocab.get(t);
+    if (idx !== undefined) vec[idx] += 1;
+  }
+  // normalize term frequency by doc length
+  if (terms.length > 0) {
+    for (let i = 0; i < vec.length; i++) vec[i] /= terms.length;
+  }
+  return vec;
+}
+
+function idfVector(docs: string[], vocab: Vocab): Float64Array {
+  const N = docs.length;
+  const df = new Float64Array(vocab.size);
+  docs.forEach((doc) => {
+    const terms = new Set(tokenize(doc));
+    for (const t of terms) {
+      const idx = vocab.get(t);
+      if (idx !== undefined) df[idx] += 1;
+    }
   });
-  
-  // The embedding response is an array of results, even for one input.
-  const queryEmbedding = embeddingResponse[0]?.embedding;
-
-  if (!queryEmbedding) {
-      throw new Error("Failed to generate an embedding for the query.");
+  const idf = new Float64Array(vocab.size);
+  for (let i = 0; i < idf.length; i++) {
+    // +1 smoothing to avoid div-by-zero
+    idf[i] = Math.log((N + 1) / (df[i] + 1)) + 1;
   }
+  return idf;
+}
 
-  const similarities = base.map((chunk) => ({
-    text: chunk.text,
-    score: cosineSimilarity(queryEmbedding, chunk.embedding),
+function hadamard(a: Float64Array, b: Float64Array): Float64Array {
+  const out = new Float64Array(a.length);
+  for (let i = 0; i < a.length; i++) out[i] = a[i] * b[i];
+  return out;
+}
+
+function cosine(a: Float64Array, b: Float64Array): number {
+  let dot = 0, na = 0, nb = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    na += a[i] * a[i];
+    nb += b[i] * b[i];
+  }
+  if (na === 0 || nb === 0) return 0;
+  return dot / (Math.sqrt(na) * Math.sqrt(nb));
+}
+
+/**
+ * Returns the top-K relevant text chunks for a query.
+ */
+export async function getRelevantContext(query: string, topK = 5): Promise<string[]> {
+  const base = await loadKnowledgeBase();
+  if (base.length === 0) return [];
+
+  const docs = base.map((c) => c.text);
+  const vocab = buildVocab([...docs, query]);
+  const idf = idfVector(docs, vocab);
+
+  const docVecs = docs.map((d) => hadamard(tfVector(d, vocab), idf));
+  const qVec = hadamard(tfVector(query, vocab), idf);
+
+  const scored = docVecs.map((v, i) => ({
+    text: docs[i],
+    score: cosine(qVec, v),
   }));
 
-  similarities.sort((a, b) => b.score - a.score);
-
-  return similarities.slice(0, topK).map((item) => item.text);
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, Math.max(1, topK)).map((s) => s.text);
 }
