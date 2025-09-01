@@ -93,12 +93,8 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
         // --- CORRECTION ATTEMPT ---
         console.log('[Orchestrator] Calling Generator Agent for correction...');
         
-        // ** THE DEFINITIVE FIX **
-        // On correction attempts, we provide the FULL CONSTITUTION as context, not just the RAG chunks.
-        // This gives the Generator the same worldview as the Critic, allowing it to understand the critique fully.
         const correctionContext = [projectConstitution];
         
-        // Call the agent with the full constitution as its context.
         const correctedCode = await generateCode({
             taskDescription,
             context: correctionContext,
@@ -106,8 +102,6 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
             critique: auditReport,
         });
         
-        // DEFINITIVE FIX: The orchestrator now correctly updates the 'currentCode' variable
-        // with the result of the correction attempt.
         currentCode = correctedCode;
 
         await appendToJournal(`### Corrected Code (Attempt #${attempt})\n\n\`\`\`typescript\n${currentCode}\n\`\`\``);
@@ -122,7 +116,6 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
     }
 
     console.log('[Orchestrator] Submitting code for critique...');
-    // The Critique Agent ALWAYS gets the full constitution.
     const rawCritiqueReport = await critiqueCode({
       codeToCritique: currentCode,
       projectConstitution: projectConstitution,
@@ -136,7 +129,6 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
     
     console.log(`[Orchestrator] Critique Verdict: ${verdict}`);
     
-    // DEFINITIVE FIX: The loop now breaks immediately on PASS.
     if (verdict === 'PASS') {
         console.log('[Orchestrator] ✅ Code has passed the audit!');
         break; 
@@ -145,7 +137,6 @@ async function runDevelopmentCycle(taskOrFilePath: string, outputFilePath?: stri
     }
   }
 
-  // DEFINITIVE FIX: The final check is now correct. It will properly handle a PASS on any attempt.
   if (verdict === 'PASS' && currentCode) {
     if (!outputFilePath) {
       console.error('[Orchestrator] FATAL: Output file path is missing for a successful run.');

@@ -42,7 +42,9 @@ FAIL
       `;
     }
 
-    const critiquePrompt = `
+
+    // This is the Critique-Bot Playbook prompt, now tuned for pragmatism.
+    const prompt = `
       You are an expert, hyper-critical but pragmatic code auditor and security analyst. Your sole purpose is to review the provided code and identify any and all material flaws.
 
       CRITICAL DIRECTIVE: Your goal is to help the system ship high-quality, secure code, NOT to achieve theoretical perfection.
@@ -81,7 +83,7 @@ FAIL
 
     const llmResponse = await ai.generate({
       model: googleAI.model('gemini-1.5-pro'),
-      prompt: critiquePrompt,
+      prompt: prompt,
       output: { format: 'text' },
       config: { temperature: 0.0 }, // Zero temperature for objective, fact-based critique
     });
