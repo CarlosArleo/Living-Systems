@@ -23,6 +23,7 @@
     "@genkit-ai/dotprompt": "^0.9.12",
     "@genkit-ai/firebase": "^1.18.0",
     "@genkit-ai/googleai": "^1.18.0",
+    "@google-cloud/monitoring": "^5.3.0",
     "@hookform/resolvers": "^3.9.0",
     "@radix-ui/react-accordion": "^1.2.0",
     "@radix-ui/react-alert-dialog": "^1.1.1",

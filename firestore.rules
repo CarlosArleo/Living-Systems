@@ -27,6 +27,12 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // System Health Collection:
+    // Only backend services can write health issues. No client access.
+    match /system_health/{issueId} {
+      allow read, write: if false; // Or allow read for admins if needed
+    }
+    
     // Documents can be read, but all writes are forced through the backend.
     match /places/{placeId}/documents/{docId} {
       allow read: if request.auth != null;

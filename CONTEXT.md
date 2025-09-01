@@ -54,6 +54,10 @@ The system is a **Decoupled Full-Stack Application**. The frontend (Next.js) is 
 *   **Core Strategy:** Prioritize flattened, scalable data structures to ensure long-term performance and resilience.
 *   **Golden Rule:** Use **root-level collections** for primary entities (e.g., `users`, `places`). Use **subcollections** for unbounded one-to-many relationships (e.g., `documents` under a `place`).
 *   **CRITICAL Mandate:** **Avoid deeply nested data** in maps or arrays within a single document. This is an anti-pattern that violates our principles of scalability and resource efficiency. Refer to the table below for guidance.
+*   **System Health Collection:**
+- **Path:** `system_health/{issueId}` (Root-level collection)
+- **Purpose:** To store records of KPI violations detected by the Monitor Agent.
+- **Schema:** `{ metric: string, threshold: number, measuredValue: number, resourceName: string, timestamp: Timestamp }`
 
 #### **Table 1: Firestore Data Modeling Strategies (Decision Matrix)**
 
@@ -140,3 +144,14 @@ match /databases/{database}/documents {
 *   **Principle of Assumed Context:** In every prompt, you must operate as if this entire document has been provided as your foundational context. Your primary directive is to adhere to these rules above all else.
 *   **Principle of Justification:** For significant architectural choices (e.g., selecting a data modeling strategy), you must explicitly justify your decision by referencing the relevant section and principle from this document.
 *   **The Generator-Critique Mandate:** All generated code is considered a "draft" until it has been audited. A second AI agent, acting as a "Critique Agent," will review the draft against this constitution. Code is only considered "complete" after it has passed this audit.
+
+---
+
+## 7. Performance & Health KPIs (Bio-Awareness)
+
+This section defines the key performance indicators for the RDI Platform. The "Bio-Aware Monitor Agent" will periodically check the live application against these thresholds. A violation of these KPIs is considered a systemic illness that must be addressed.
+
+- **Max P95 Latency (API Routes & Genkit Flows):** 800ms
+- **Max Error Rate (Cloud Functions & Genkit Flows):** 0.1%
+- **Max Firestore Reads per User Action:** 50 documents
+- **Monthly Budget Threshold (Alert):** 80%
