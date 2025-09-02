@@ -7,7 +7,7 @@
 import { ai } from '../genkit';
 import { googleAI } from '@genkit-ai/googleai';
 import { z } from 'zod';
-import { retrieveRelevantContext } from '../knowledge-base';
+import { getRelevantContext } from '../knowledge-base';
 
 const MetaPrompterInputSchema = z.string().describe('A high-level description of the development task for which a Master Prompt is needed.');
 
@@ -28,7 +28,7 @@ export const generateMasterPrompt = ai.defineFlow(
     console.log(`[MetaPrompter] Generating Master Prompt for task: "${taskDescription}"`);
 
     // 1. Retrieve context relevant to the task.
-    const relevantContext = await retrieveRelevantContext(taskDescription, 7); // Fetch more context for better prompt generation
+    const relevantContext = await getRelevantContext(taskDescription, 7); // Fetch more context for better prompt generation
     console.log(`[MetaPrompter] Retrieved ${relevantContext.length} relevant context chunks.`);
 
     // 2. The Meta-Prompt: Instruct the AI to act as a prompt engineer.
