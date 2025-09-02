@@ -1,45 +1,30 @@
-// genkit.config.ts
-
-import { configure } from 'genkit';
+/**
+ * @fileoverview Central Genkit configuration file.
+ * This file is now aligned with the modern Genkit v1.x syntax and mirrors
+ * the setup in `src/ai/genkit.ts` for consistency.
+ */
+import 'dotenv/config';
+import { genkit, type GenkitOptions } from 'genkit';
+import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
 import { googleAI } from '@genkit-ai/googleai';
-import { dotprompt } from '@genkit-ai/dotprompt';
-import { firebase } from '@genkit-ai/firebase'; // Assuming this is needed for stores
-import { defineTool } from 'genkit/tool';
-import * as fs from 'fs';
-import * as path from 'path';
 
-// This is the "Genetic Core" - the single source of truth for our constitution.
-// By defining it as a tool, we make it an intrinsic, callable part of the ecosystem.
-const constitutionTool = defineTool(
-  {
-    name: 'applyConstitution',
-    description: 'Retrieves and provides the full text of the Project Constitution (CONTEXT.md) to an agent, ensuring all actions are governed by its principles.',
-    inputSchema: z.void(), // No input needed
-    outputSchema: z.string(),
-  },
-  async () => {
-    // Use a robust path to find CONTEXT.md from the project root.
-    const constitutionPath = path.join(process.cwd(), 'CONTEXT.md');
-    return fs.readFileSync(constitutionPath, 'utf-8');
-  }
-);
+// Enable Firebase telemetry for monitoring. This automatically sets up
+// the required flowStateStore and traceStore.
+enableFirebaseTelemetry();
 
-// This is the main configuration for our "Living System."
-configure({
+const genkitConfig: GenkitOptions = {
   plugins: [
     googleAI(),
-    firebase({
-      flowStateStore: 'firebase',
-      traceStore: 'firebase',
-    }),
-    dotprompt({ dir: './src/ai/prompts' }),
+    // Additional plugins would go here.
   ],
-  // Define the directories where our "organelles" (flows) live.
-  flows: [
-    // We will add our generate, critique, and correct flows here later.
-  ],
-  // Make the "DNA" available to all parts of the system.
-  tools: [constitutionTool],
+  // No need to define stores, tools, or flows here in modern Genkit.
+  // Flows are automatically discovered, and tools are passed directly to prompts.
   logLevel: 'debug',
   enableTracingAndMetrics: true,
-});
+};
+
+// The modern `genkit()` constructor is used instead of `defineConfig`.
+// Note: This file isn't the primary 'ai' instance for the app, 
+// which is in src/ai/genkit.ts, but it provides a valid configuration
+// for any CLI operations that might read from the root.
+export default genkit(genkitConfig);
