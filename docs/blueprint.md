@@ -1,19 +1,18 @@
-# **App Name**: Genkit Flow Orchestrator
+# **App Name**: PicPerfect
 
 ## Core Features:
 
-- Project Structure: Provides a structured project architecture with separate 'app' and 'ai-functions' directories for clean separation of concerns.
-- AI Logic Isolation: Encapsulates Genkit AI flows within the 'ai-functions' directory, isolating AI logic from the frontend application.
-- AI Deployment: Deploys AI flows as serverless functions via Firebase, enabling secure and scalable AI execution.
-- AI Function Invocation: Communicates with deployed AI functions using HTTPS callable functions, abstracting AI implementation details from the frontend.
-- Render Response: A basic UI rendering prompt response in an HTML format.
+- Upload Photo: Allow users to upload a photo from their device or from a URL.
+- AI-Powered Description: Generate a short, engaging description of the uploaded photo using an AI tool.
+- Display Photo: Showcase the uploaded photo prominently with the AI-generated description below it.
+- Description Editing: Allow users to edit the AI-generated description to refine it.
 
 ## Style Guidelines:
 
-- Primary color: Deep purple (#673AB7) to reflect intelligence and focus.
-- Background color: Light gray (#F5F5F5) to ensure readability and a clean interface in a light color scheme.
-- Accent color: Cyan (#00BCD4) to highlight interactive elements and provide visual interest.
-- Body and headline font: 'Inter', a sans-serif font for clean, modern readability.
-- Use simple, geometric icons to represent different functions and features, keeping with the modern, clean aesthetic.
-- Maintain a clean, uncluttered layout with generous whitespace to improve readability and focus on content.
-- Use subtle transitions and animations to provide feedback on user interactions without being distracting.
+- Primary color: Muted teal (#70A4A9) for a calming and trustworthy feel, representing memories and digital aesthetics.
+- Background color: Very light gray (#F0F2F5) to ensure the images are the focus.
+- Accent color: Soft peach (#F2B677) for interactive elements, providing a warm, complementary contrast.
+- Body and headline font: 'Inter', a grotesque-style sans-serif font with a modern, neutral look.
+- Use simple, outlined icons for upload and edit functions to maintain a clean interface.
+- A clean, single-column layout for easy viewing on any device.
+- Subtle fade-in animations for the image and description upon loading to enhance the user experience.

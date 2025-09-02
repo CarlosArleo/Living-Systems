@@ -1,18 +1,8 @@
-import { genkit } from 'genkit';
-import { googleAI } from '@genkit-ai/googleai';
-import { initializeApp } from 'firebase-admin/app';
+/**
+ * @fileoverview Genkit configuration entry point.
+ * This file re-exports the centrally configured 'ai' instance from `src/ai/genkit.ts`,
+ * ensuring a single source of truth for the Genkit setup.
+ * This modern approach aligns with Genkit v1.x best practices.
+ */
 
-// Initialize Firebase Admin SDK
-initializeApp();
-
-// Start with just the working plugins, add others later
-export const ai = genkit({
-  plugins: [
-    googleAI(), // This should work
-    // Comment out problematic plugins temporarily:
-    // firebase plugin - will add back once we figure out the import
-    // dotprompt plugin - will add back once we figure out the import
-  ],
-});
-
-// Once this works, we can add the other plugins one by one
+export { ai } from './src/ai/genkit';

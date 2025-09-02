@@ -7,9 +7,6 @@
 import { googleAI } from '@genkit-ai/googleai';
 import { z } from 'zod';
 import { ai } from '@/ai/genkit';
-import * as fs from 'fs/promises';
-import * as path from 'path';
-
 
 const CorrectInputSchema = z.object({
   code: z.string().describe('The dissonant code that needs healing.'),
@@ -35,28 +32,19 @@ export const correctFlow = ai.defineFlow(
     console.log('[correctFlow] Regenerating harmony...');
 
     const { code, feedback } = input;
-    const dna = await fs.readFile(path.join(process.cwd(), 'docs', 'MASTER_SYSTEM_PROMPT.md'), 'utf-8');
 
-
-    const correctionPrompt = `
-      ${dna}
-
-      Your assigned role for this task is **The Restorative Healer (Correct)**.
-
-      You have received dissonant code and feedback signals. Your sole purpose is to regenerate the code to restore its harmony with your intrinsic DNA. Address EVERY material flaw mentioned in the feedback. Do not introduce new features.
+    const correctionPrompt = `You are a code regeneration expert. You are provided with code that does not align with project guidelines and coding principles, also known as DNA. You can access the DNA to correct the code, and you address the feedback. You produce the new, corrected code. You respond only with the corrected code. You do not include any explanations.\n
+      Feedback Signals to Address:
+      ---
+      ${feedback}
+      ---
 
       Dissonant Code:
       \`\`\`typescript
       ${code}
       \`\`\`
 
-      Feedback Signals to Address:
-      ---
-      ${feedback}
-      ---
-
-      Produce the corrected, harmonious code. Output ONLY the raw code block.
-    `;
+      Produce the corrected, harmonious code. Output ONLY the raw code block.`;
 
     const llmResponse = await ai.generate({
       model: googleAI.model('gemini-1.5-pro'),

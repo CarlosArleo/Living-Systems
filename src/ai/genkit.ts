@@ -1,5 +1,15 @@
-// Import from your genkit config file (adjust path as needed)
-import { ai } from '../../genkit.config';
+import 'dotenv/config';
+import { genkit, type GenkitOptions} from 'genkit';
+import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
+import { googleAI } from '@genkit-ai/googleai';
 
-// Export the configured AI instance for use in other files
-export { ai };
+enableFirebaseTelemetry();
+
+const genkitConfig: GenkitOptions = {
+  plugins: [
+    googleAI({
+    })
+  ],
+};
+
+export const ai = genkit(genkitConfig);

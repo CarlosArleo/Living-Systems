@@ -1,6 +1,3 @@
-
-'use client';
-
 import * as React from 'react';
 import {
   ChevronLeft,
@@ -38,11 +35,11 @@ import { UserProfile } from './user-profile';
 import { UploadDialog } from './upload-dialog';
 
 // Corrected Type Definition for Place
-type Place = {
+interface Place {
   id: string;
   name: string;
   [key: string]: any;
-};
+}
 
 type AnalysisPanelProps = {
   onPlaceChange: (place: Place | null) => void;
@@ -213,7 +210,7 @@ export function AnalysisPanel({ onPlaceChange, selectedPlace, onLayerVisibilityC
                   </DialogContent>
                 </Dialog>
               </div>
-               {places.map((p: Place) => ( // Add explicit type here for safety
+               {places.map((p: Place) => (
                 <div key={p.id} onClick={() => onPlaceChange(p)}
                   className={cn( "flex w-full items-center gap-2 p-2 text-left font-body text-xs text-muted-foreground hover:bg-accent/50 hover:text-foreground cursor-pointer border border-transparent rounded-none",
                     selectedPlace?.id === p.id && "bg-accent/80 text-foreground border-border" )}>

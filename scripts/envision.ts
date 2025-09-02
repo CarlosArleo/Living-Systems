@@ -2,7 +2,7 @@
  * @fileOverview The Architectural Potential Agent ("Envision Agent").
  * This script allows an architect to ask strategic questions of the codebase.
  */
-import { runFlow } from 'genkit/flow';
+import { run } from '@genkit-ai/core';
 import { getCodebaseContext } from '../src/ai/vision/code-retriever';
 import { promises as fs } from 'fs';
 import * as path from 'path';
@@ -25,14 +25,11 @@ async function envision(question: string) {
 
     // Step 2: Call the Genkit flow with the question and the relevant context.
     console.log('[Envision Agent] Calling the envisionNewFeature flow...');
-    const proposal = await runFlow('envisionNewFeature', {
-      question,
-      codebaseContext,
-    });
+    const proposal = await run('envisionNewFeature', () => Promise.resolve({ question, codebaseContext }));
 
     // Step 3: Save and display the proposal.
     const outputPath = path.join(process.cwd(), 'docs', `PROPOSAL-${Date.now()}.md`);
-    await fs.writeFile(outputPath, proposal);
+    await fs.writeFile(outputPath, String((await proposal as any).finalCode));
 
     console.log(`\n✅ [Envision Agent] Success! Architectural proposal generated.`);
     console.log(`   View the proposal at: ${outputPath}`);

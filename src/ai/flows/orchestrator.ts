@@ -9,8 +9,6 @@ import { generateFlow } from './generate';
 import { critiqueFlow } from './critique';
 import { correctFlow } from './correct';
 import { ai } from '@/ai/genkit';
-import * as fs from 'fs/promises';
-import * as path from 'path';
 
 const OrchestratorInputSchema = z.object({
   initialPrompt: z.string().describe('The high-level task description or Master Prompt.'),
@@ -27,15 +25,16 @@ export const orchestratorFlow = ai.defineFlow(
   },
   async (input: OrchestratorInput) => {
     console.log('[orchestratorFlow] Starting regenerative loop...');
-    
-    const projectConstitution = await fs.readFile(path.join(process.cwd(), 'CONTEXT.md'), 'utf-8');
-    
+
+    // 2. Generate initial code
     let { code } = await generateFlow({ prompt: input.initialPrompt });
-    
+
     const maxAttempts = 3; // A natural limit for sustainability
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       console.log(`[orchestratorFlow] Loop #${attempt}: Sensing for dissonance...`);
-      const { feedback, pass } = await critiqueFlow({ code, projectConstitution });
+
+      // 3. Critique the code
+      const { feedback, pass } = await critiqueFlow({ code });
 
       if (pass) {
         console.log('[orchestratorFlow] ✅ Equilibrium reached. Loop complete.');
@@ -43,6 +42,8 @@ export const orchestratorFlow = ai.defineFlow(
       }
 
       console.log(`[orchestratorFlow] ❌ Dissonance detected. Initiating restoration...`);
+
+      // 4. Correct the code
       const { correctedCode } = await correctFlow({ code, feedback });
       code = correctedCode;
     }
