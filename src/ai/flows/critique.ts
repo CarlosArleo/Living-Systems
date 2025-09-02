@@ -21,10 +21,11 @@ export const critiqueFlow = ai.defineFlow(
       feedback: z.string().describe('A detailed report of any material flaws found.'),
       pass: z.boolean().describe('True if the code is in equilibrium (PASS), false otherwise (FAIL).'),
     }),
-    tools: ['applyConstitution'], // Makes the DNA intrinsically available
+    // The `tools` property is not defined here, but in the ai.generate call.
   },
-  async ({ code }: CritiqueInput) => {
+  async (input: CritiqueInput) => {
     console.log('[critiqueFlow] Sensing for dissonance...');
+    const { code } = input;
 
     const critiquePrompt = `
       You are the "Sensory Detector" organelle. Your purpose is to evaluate the provided code for any material flaws or dissonance against your intrinsic DNA (the Project Constitution), which is available to you as a tool.
@@ -43,6 +44,7 @@ export const critiqueFlow = ai.defineFlow(
       model: googleAI.model('gemini-1.5-pro'),
       prompt: critiquePrompt,
       config: { temperature: 0.0 },
+      tools: ['applyConstitution'], // CORRECT: Tools are provided to the model here.
     });
 
     const responseText = llmResponse.text;

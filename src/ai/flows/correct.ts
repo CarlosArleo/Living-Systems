@@ -21,10 +21,12 @@ export const correctFlow = ai.defineFlow(
     outputSchema: z.object({
       correctedCode: z.string().describe('The regenerated, harmonious code.'),
     }),
-    tools: ['applyConstitution'], // Makes the DNA intrinsically available
+    // The `tools` property is not defined here, but in the ai.generate call.
   },
-  async ({ code, feedback }: CorrectInput) => {
+  async (input: CorrectInput) => {
     console.log('[correctFlow] Regenerating harmony...');
+
+    const { code, feedback } = input;
 
     const correctionPrompt = `
       You are the "Restorative Healer" organelle. You have received dissonant code and feedback signals. Your sole purpose is to regenerate the code to restore its harmony with your intrinsic DNA (the Project Constitution), which is available as a tool.
@@ -48,6 +50,7 @@ export const correctFlow = ai.defineFlow(
       model: googleAI.model('gemini-1.5-pro'),
       prompt: correctionPrompt,
       config: { temperature: 0.2 },
+      tools: ['applyConstitution'], // CORRECT: Tools are provided to the model here.
     });
 
     return { correctedCode: llmResponse.text };
