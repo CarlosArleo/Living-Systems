@@ -5,6 +5,7 @@
  */
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { projectConfig } from '../src/ai/config';
 
 // --- Type Definitions ---
 interface FlowManifest {
@@ -25,9 +26,7 @@ async function runPreFlightChecks() {
     console.log('--- PRE-FLIGHT CHECKS ---');
     console.log('[i] Checking for required environment variables in .env file...');
     try {
-        // This dynamic import will throw an error if config.ts fails,
-        // which is what we want.
-        const { projectConfig } = await import('../src/ai/config');
+        // This will throw an error if config.ts fails, which is what we want.
         if (projectConfig.projectId && projectConfig.storageBucket) {
              console.log('[✓] Environment Configuration: OK');
         } else {
@@ -84,7 +83,7 @@ async function checkIndexRegistration(fileName: string): Promise<boolean> {
 async function checkWiring(filePath: string): Promise<boolean> {
   try {
     const fileContent = await fs.readFile(filePath, 'utf-8');
-    const importPattern = /import { ai } from '..\/genkit'|import { ai } from '@\/ai\/genkit'/;
+    const importPattern = /import { ai } from '@\/ai\/genkit'/;
     return importPattern.test(fileContent);
   } catch {
     return false; // File doesn't exist, so it can't be wired
@@ -108,7 +107,6 @@ async function runDiagnostics() {
 
   const constitutionFlows = await parseConstitution();
   
-  // FIX: Handle case where no flows are found in the constitution
   if (constitutionFlows.size === 0) {
     console.warn('\n--- DIAGNOSTIC AUDIT REPORT ---');
     console.warn('[!] WARNING: No flows were found in docs/FLOW_SYSTEM_CONSTITUTION.md.');

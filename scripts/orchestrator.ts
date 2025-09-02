@@ -5,11 +5,10 @@
 import 'dotenv/config';
 'use server';
 
-// UPDATED: Import both agents
-import { generateFlow } from '../src/ai/flows/generate';
-import { critiqueFlow } from '../src/ai/flows/critique';
-import { correctFlow } from '../src/ai/flows/correct';
-import { getRelevantContext } from '../src/ai/knowledge-base';
+import { generateFlow } from '@/ai/flows/generate';
+import { critiqueFlow } from '@/ai/flows/critique';
+import { correctFlow } from '@/ai/flows/correct';
+import { getRelevantContext } from '@/ai/knowledge-base';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
