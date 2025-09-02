@@ -4,7 +4,7 @@
  */
 'use server';
 
-import { ai } from '../genkit';
+import { ai } from '@/ai/genkit';
 import { googleAI } from '@genkit-ai/googleai';
 import { z } from 'zod';
 import { getRelevantContext } from '../knowledge-base';

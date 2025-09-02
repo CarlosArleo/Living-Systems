@@ -4,7 +4,7 @@
  */
 
 import 'dotenv/config';
-import { ai } from '../src/ai/genkit';
+import { ai } from '@/ai/genkit';
 import { googleAI } from '@genkit-ai/googleai';
 import * as fs from 'fs/promises';
 import * as path from 'path';

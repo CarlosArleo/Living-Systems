@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
         fileName: validation.data.sourceFile, // Add the missing 'fileName' property
         uploadedBy: uid,
         documentId: documentId 
-     }).catch(flowError => {
+     }).catch((flowError: any) => {
         // Log any errors from the background flow execution for debugging
         console.error(`[Harmonize API] Background flow execution failed for docId ${documentId}:`, flowError);
     });

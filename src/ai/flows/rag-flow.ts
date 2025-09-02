@@ -5,7 +5,7 @@
  */
 'use server';
 
-import { ai } from '../genkit';
+import { ai } from '@/ai/genkit';
 import { googleAI } from '@genkit-ai/googleai';
 import {
   knowledgeRetriever, // Import the single, generic retriever
@@ -14,6 +14,7 @@ import {
   type RagQueryInput,
   type RagQueryOutput,
 } from './knowledge-schemas';
+import { Document } from '@genkit-ai/core/doc';
 
 /**
  * The main RAG flow.
@@ -48,7 +49,7 @@ const ragQueryFlow = ai.defineFlow(
       };
     }
 
-    const contextChunks = docs.map(doc => doc.content[0].text || '');
+    const contextChunks = docs.map((doc: Document) => doc.content[0].text || '');
     console.log(`[ragQueryFlow] Found ${contextChunks.length} relevant context chunks.`);
 
     // Augment the prompt with the retrieved context.

@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { generateFlow } from './generate';
 import { critiqueFlow } from './critique';
 import { correctFlow } from './correct';
-import { ai } from '../genkit';
+import { ai } from '@/ai/genkit';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 

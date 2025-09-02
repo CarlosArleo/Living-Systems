@@ -6,7 +6,7 @@
 
 import { googleAI } from '@genkit-ai/googleai';
 import { z } from 'zod';
-import { ai } from '../genkit';
+import { ai } from '@/ai/genkit';
 
 const GenerateInputSchema = z.object({
   prompt: z.string().describe('The detailed Master Prompt for the generation task.'),

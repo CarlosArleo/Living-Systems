@@ -1,7 +1,9 @@
 /**
  * @fileOverview A flow for indexing and storing knowledge in Firestore.
  */
-import { ai } from '../genkit';
+'use server';
+
+import { ai } from '@/ai/genkit';
 import { googleAI } from '@genkit-ai/googleai';
 import { z } from 'zod';
 import * as admin from 'firebase-admin';
@@ -72,7 +74,7 @@ export const indexerFlow = ai.defineFlow(
     const writeBatch = db.batch();
     let totalChars = 0;
     
-    embeddings.forEach((embedding, i) => {
+    embeddings.forEach((embedding: number[], i: number) => {
       const docRef = knowledgeCollection.doc();
       const docData: z.infer<typeof KnowledgeSchema> = {
         placeId, // Tag with placeId

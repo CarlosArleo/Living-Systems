@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
       storagePath: docData.storagePath,
       fileName: docData.sourceFile,
       uploadedBy: uid,
-    }).catch(flowError => {
+    }).catch((flowError: any) => {
         // Log any errors from the background flow execution
         console.error(`[Analyze API] Background flow execution failed for docId ${docId}:`, flowError);
     });

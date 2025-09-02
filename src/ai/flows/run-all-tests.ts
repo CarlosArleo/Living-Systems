@@ -5,8 +5,8 @@
  */
 'use server';
 
-import { generateCode } from './generateCode';
-import { critiqueCode } from './critiqueCode';
+import { generateFlow } from './generate';
+import { critiqueFlow } from './critique';
 import { generateMasterPrompt } from './meta-prompter';
 import { embedText } from './embed';
 import * as fs from 'fs/promises';
@@ -56,11 +56,11 @@ async function runTests() {
   // Test 3: critiqueCode
   try {
     const input = {
-        codeToCritique: 'function add(a, b) { return a + b; }',
+        code: 'function add(a, b) { return a + b; }',
         projectConstitution: 'All functions must have TypeScript types.'
     };
-    const output = await critiqueCode(input);
-    const pass = output.includes('FAIL');
+    const output = await critiqueFlow(input);
+    const pass = !output.pass && output.feedback.includes('FAIL');
     testResults.push({ 
         name: 'critiqueCode', 
         status: pass ? '✅ PASS' : '❌ FAIL', 
@@ -73,11 +73,10 @@ async function runTests() {
   // Test 4: generateCode (Initial Generation)
   try {
       const input = {
-          taskDescription: "A simple function to add two numbers.",
-          context: ["All functions must use TypeScript and have JSDoc comments."],
+          prompt: "A simple function to add two numbers. All functions must use TypeScript and have JSDoc comments.",
       };
-      const output = await generateCode(input);
-      const pass = output.includes('function add(a: number, b: number): number');
+      const output = await generateFlow(input);
+      const pass = output.code.includes('function add(a: number, b: number): number');
       testResults.push({ 
         name: 'generateCode (Initial)', 
         status: pass ? '✅ PASS' : '❌ FAIL', 

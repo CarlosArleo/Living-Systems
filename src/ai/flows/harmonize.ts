@@ -9,7 +9,7 @@
  */
 'use server';
 
-import { ai } from '../genkit';
+import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import * as admin from 'firebase-admin';
 import { projectConfig } from '../config';
@@ -52,7 +52,8 @@ const harmonizeDataFlow = ai.defineFlow(
     inputSchema: HarmonizeDataInputSchema,
     outputSchema: HarmonizeDataOutputSchema,
   },
-  async ({ placeId, initialCapitalCategory, storagePath, sourceFile, uploadedBy }) => {
+  async (input: HarmonizeDataInput) => {
+    const { placeId, initialCapitalCategory, storagePath, sourceFile, uploadedBy } = input;
     console.log(`[harmonizeDataFlow] Creating document metadata for placeId: ${placeId}, file: ${sourceFile}`);
 
     const docRef = await db

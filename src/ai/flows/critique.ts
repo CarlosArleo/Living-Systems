@@ -6,8 +6,9 @@
 
 import { googleAI } from '@genkit-ai/googleai';
 import { z } from 'zod';
-import { ai } from '../genkit';
-import dna from '../prompts/system_dna.prompt';
+import { ai } from '@/ai/genkit';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
 const CritiqueInputSchema = z.object({
   code: z.string().describe('The generated code to be audited.'),
@@ -27,6 +28,7 @@ export const critiqueFlow = ai.defineFlow(
   async (input: CritiqueInput) => {
     console.log('[critiqueFlow] Sensing for dissonance...');
     const { code, projectConstitution } = input;
+    const dna = await fs.readFile(path.join(process.cwd(), 'src', 'ai', 'prompts', 'system_dna.prompt'), 'utf-8');
 
     const critiquePrompt = `
       ${dna}

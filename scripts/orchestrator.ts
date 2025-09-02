@@ -6,9 +6,9 @@ import 'dotenv/config';
 'use server';
 
 // UPDATED: Import both agents
-import { generateCode } from '../src/ai/flows/generateCode';
-import { correctCode } from '../src/ai/flows/correctCode'; 
-import { critiqueCode } from '../src/ai/flows/critiqueCode';
+import { generateFlow } from '../src/ai/flows/generate';
+import { critiqueFlow } from '../src/ai/flows/critique';
+import { correctFlow } from '../src/ai/flows/correct';
 import { getRelevantContext } from '../src/ai/knowledge-base';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -106,21 +106,22 @@ async function runDevelopmentCycle(
           )
           .join('\n\n')}`
       );
-      currentCode = await generateCode({
-        taskDescription,
-        context: relevantContextChunks,
+      const generateResult = await generateFlow({
+        prompt: `TASK: ${taskDescription}\n\nCONTEXT:\n${relevantContextChunks.join('\n---\n')}`,
       });
+      currentCode = generateResult.code;
+
       await appendToJournal(
         `### Generated Code (Attempt #${attempt})\n\n\`\`\`typescript\n${currentCode}\n\`\`\``
       );
     } else if (currentCode && auditReport) {
       // --- CORRECTION ---
       console.log('[Orchestrator] Calling Debugging Agent for correction...');
-      currentCode = await correctCode({
-        failedCode: currentCode,
-        critique: auditReport,
-        originalTask: taskDescription,
+      const correctResult = await correctFlow({
+          code: currentCode,
+          feedback: auditReport,
       });
+      currentCode = correctResult.correctedCode;
       await appendToJournal(
         `### Corrected Code (Attempt #${attempt})\n\n\`\`\`typescript\n${currentCode}\n\`\`\``
       );
@@ -137,20 +138,18 @@ async function runDevelopmentCycle(
     }
 
     console.log('[Orchestrator] Submitting code for critique...');
-    const rawCritiqueReport: string = await critiqueCode({
-      codeToCritique: currentCode,
+    const critiqueResult = await critiqueFlow({
+      code: currentCode,
       projectConstitution: projectConstitution,
     });
+    
+    const rawCritiqueReport = critiqueResult.feedback;
+    verdict = critiqueResult.pass ? 'PASS' : 'FAIL';
+    auditReport = rawCritiqueReport;
 
     await appendToJournal(
       `### Critique Report (Attempt #${attempt})\n\n${rawCritiqueReport}`
     );
-
-    const verdictMatch: RegExpMatchArray | null =
-      rawCritiqueReport.match(/(\n|\r\n)3\. Verdict:\s*(\w+)/i);
-    verdict =
-      verdictMatch && verdictMatch[2].toUpperCase() === 'PASS' ? 'PASS' : 'FAIL';
-    auditReport = rawCritiqueReport;
 
     console.log(`[Orchestrator] Critique Verdict: ${verdict}`);
 

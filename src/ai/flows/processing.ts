@@ -5,7 +5,7 @@
  */
 'use server';
 
-import { ai } from '../genkit';
+import { ai } from '@/ai/genkit';
 import { googleAI } from '@genkit-ai/googleai';
 import { z } from 'zod';
 import * as admin from 'firebase-admin';
@@ -60,7 +60,7 @@ const AIOutputSchema = z.object({
 
 // --- Helper Functions ---
 async function loadPromptTemplate(): Promise<string> {
-  const promptPath = path.join(process.cwd(), 'docs', 'AI_Prompt_Engineering_Framework.md');
+  const promptPath = path.join(process.cwd(), 'docs', 'Prompts', 'AI Prompt Engineering Framework for the RDI Platform (The Implementation).md');
   try {
       const frameworkContent = await fs.readFile(promptPath, 'utf-8');
       const match = frameworkContent.match(/# MASTER PROMPT: DOCUMENT ANALYSIS & FIVE CAPITALS HARMONIZATION([\s\S]*?)---DOCUMENT START---/);

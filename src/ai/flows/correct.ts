@@ -6,8 +6,10 @@
 
 import { googleAI } from '@genkit-ai/googleai';
 import { z } from 'zod';
-import { ai } from '../genkit';
-import dna from '../prompts/system_dna.prompt';
+import { ai } from '@/ai/genkit';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+
 
 const CorrectInputSchema = z.object({
   code: z.string().describe('The dissonant code that needs healing.'),
@@ -27,6 +29,8 @@ export const correctFlow = ai.defineFlow(
     console.log('[correctFlow] Regenerating harmony...');
 
     const { code, feedback } = input;
+    const dna = await fs.readFile(path.join(process.cwd(), 'src', 'ai', 'prompts', 'system_dna.prompt'), 'utf-8');
+
 
     const correctionPrompt = `
       ${dna}
