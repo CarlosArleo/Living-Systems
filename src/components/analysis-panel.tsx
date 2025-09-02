@@ -46,7 +46,7 @@ type Place = {
 
 type AnalysisPanelProps = {
   onPlaceChange: (place: Place | null) => void;
-  selectedPlace: Place | null; // This type is now correctly defined and used.
+  selectedPlace: Place | null;
   onLayerVisibilityChange: (layers: any) => void;
   visibleLayers: any;
 };
@@ -213,7 +213,7 @@ export function AnalysisPanel({ onPlaceChange, selectedPlace, onLayerVisibilityC
                   </DialogContent>
                 </Dialog>
               </div>
-               {places.map(p => (
+               {places.map((p: Place) => ( // Add explicit type here for safety
                 <div key={p.id} onClick={() => onPlaceChange(p)}
                   className={cn( "flex w-full items-center gap-2 p-2 text-left font-body text-xs text-muted-foreground hover:bg-accent/50 hover:text-foreground cursor-pointer border border-transparent rounded-none",
                     selectedPlace?.id === p.id && "bg-accent/80 text-foreground border-border" )}>

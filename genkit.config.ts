@@ -1,29 +1,40 @@
-/**
- * @fileoverview Central Genkit configuration file.
- * This file is now aligned with the modern Genkit v1.x syntax and mirrors
- * the setup in `src/ai/genkit.ts` for consistency.
- */
-import 'dotenv/config';
-import { genkit, type GenkitOptions } from 'genkit';
-import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
+// genkit.config.ts
+
+import { configure } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
+import { firebase } from '@genkit-ai/firebase';
+import { dotprompt } from '@genkit-ai/dotprompt';
+import { defineTool } from 'genkit/tool';
+import * as fs from 'fs';
+import * as path from 'path';
+import { z } from 'zod';
 
-// Enable Firebase telemetry for monitoring. This automatically sets up
-// the required flowStateStore and traceStore.
-enableFirebaseTelemetry();
+// The "Genetic Core" tool
+const constitutionTool = defineTool(
+  {
+    name: 'applyConstitution',
+    description: 'Retrieves the full text of the Project Constitution (CONTEXT.md).',
+    inputSchema: z.void(),
+    outputSchema: z.string(),
+  },
+  async () => {
+    const constitutionPath = path.join(process.cwd(), 'CONTEXT.md');
+    return fs.readFileSync(constitutionPath, 'utf-8');
+  }
+);
 
-const genkitConfig: GenkitOptions = {
+// Main configuration
+configure({
   plugins: [
     googleAI(),
-    // Additional plugins would go here.
+    firebase({
+      flowStateStore: 'firebase',
+      traceStore: 'firebase',
+    }),
+    dotprompt({ dir: './src/ai/prompts' }),
   ],
-  // No need to define logLevel, enableTracingAndMetrics, stores, tools, or flows here in modern Genkit.
-  // Flows are automatically discovered from the `src/ai/flows` directory.
-  // Telemetry and stores are configured by `enableFirebaseTelemetry()`.
-};
-
-// The modern `genkit()` constructor is used instead of `defineConfig`.
-// Note: This file isn't the primary 'ai' instance for the app, 
-// which is in src/ai/genkit.ts, but it provides a valid configuration
-// for any CLI operations that might read from the root.
-export default genkit(genkitConfig);
+  flowPath: 'src/ai/flows', // Automatically discover all flows in this directory
+  tools: [constitutionTool],
+  logLevel: 'debug',
+  enableTracingAndMetrics: true,
+});

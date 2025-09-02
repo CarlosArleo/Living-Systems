@@ -1,19 +1,14 @@
 /**
  * @fileOverview A central index file to export all Genkit flows.
- * This ensures that all flows are registered with the Genkit server
- * when this file is imported.
  */
 
-// Core orchestrator flows - use specific exports to avoid conflicts
-export { generateCode } from './generateCode';
-export { correctCode } from './correctCode'; // NEW: Export the debugging agent
-export { critiqueCode } from './critiqueCode';
-export { embedText } from './embed';
+// The new, elegant "Living System" flows
+export * from './generate';
+export * from './critique';
+export * from './correct';
+export * from './orchestrator';
 
-// Other flows - use wildcard exports since they don't conflict
-export * from './knowledge';
-export * from './rag-flow';
-export * from './simple';
-export * from './story-flow';
-export * from './meta-prompter';
+// Other utility and application flows
+export * from './embed';
 export * from './processing';
+// ... add other flows as they are built
