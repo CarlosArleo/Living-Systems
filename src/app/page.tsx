@@ -104,8 +104,8 @@ export default function Home() {
             <StoryPanel place={selectedPlace} />
             <FeedbackPanel place={selectedPlace} user={user} />
         </div>
+        <Toaster />
       </main>
-      <Toaster />
     </ToastProvider>
   );
 }

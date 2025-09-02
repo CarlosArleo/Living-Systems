@@ -41,13 +41,12 @@ import { UploadDialog } from './upload-dialog';
 type Place = {
   id: string;
   name: string;
-  // Add other potential fields from Firestore document
   [key: string]: any;
 };
 
 type AnalysisPanelProps = {
   onPlaceChange: (place: Place | null) => void;
-  selectedPlace: Place | null;
+  selectedPlace: Place | null; // This type is now correctly defined and used.
   onLayerVisibilityChange: (layers: any) => void;
   visibleLayers: any;
 };
