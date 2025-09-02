@@ -3,8 +3,10 @@ const nextConfig = {
   // Allow requests from Cloud Workstations and other Firebase domains
   allowedDevOrigins: [
     'localhost',
-    '*.cloudworkstations.dev',
-    '*.cluster-*.cloudworkstations.dev',
+    'firebase-rdd-applicationback-1756497949958.cluster-jbb3mjctu5cbgsi6hwq6u4btwe.cloudworkstations.dev',
+    '3000-firebase-rdd-applicationback-1756497949958.cluster-jbb3mjctu5cbgsi6hwq6u4btwe.cloudworkstations.dev',
+    '6000-firebase-rdd-applicationback-1756497949958.cluster-jbb3mjctu5cbgsi6hwq6u4btwe.cloudworkstations.dev',
+    '9000-firebase-rdd-applicationback-1756497949958.cluster-jbb3mjctu5cbgsi6hwq6u4btwe.cloudworkstations.dev',
     '*.firebase.com',
     '*.web.app',
   ],

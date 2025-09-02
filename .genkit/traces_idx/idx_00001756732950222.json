@@ -1,7 +1,0 @@
-{"id":"61f3eb7cc13bb22a53962de6d591328e","type":"UNKNOWN","start":1756732966189,"name":"GET","end":1756732966287.133,"status":0}
-{"id":"aa85eaa35260cfdd8247eef50c1b57b8","type":"UNKNOWN","start":1756732966134,"name":"GET","end":1756732966302.9385,"status":0}
-{"id":"9f90e1e215eae1adc4411e9cc755d82d","type":"flow","start":1756732984934,"name":"ragQueryFlow","end":1756732986382.7458,"status":0}
-{"id":"0a898eb656c4ec5df76ead56225c2107","type":"flow","start":1756732993804,"name":"critiqueCode","end":1756732993804.465,"status":0}
-{"id":"5971f428cf49c185b324044ad725ef56","type":"flow","start":1756732997631,"name":"embedText","end":1756732997965.378,"status":0}
-{"id":"922e3721fc2448d7e424931462c368f5","type":"flow","start":1756733006298,"name":"generateMasterPrompt","end":1756733020223.2742,"status":0}
-{"id":"156582250dbd7bb93da7624ab0164d00","type":"flow","start":1756733195665,"name":"generateMasterPrompt","end":1756733208419.6174,"status":0}

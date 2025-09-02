@@ -1,25 +1,18 @@
 {
   "compilerOptions": {
-    // --- Target & Module System ---
     "target": "ES2022",
     "lib": ["dom", "dom.iterable", "esnext"],
     "module": "esnext",
-    "moduleResolution": "bundler", // Use 'bundler' for modern tools like Vite/Next.js
-
-    // --- Path Aliases (THE CRITICAL FIX) ---
-    "baseUrl": ".",
+    "moduleResolution": "bundler",
+    "baseUrl": ".", // CRITICAL: This tells aliases to resolve from the root
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"] // CRITICAL: Defines the '@/' alias
     },
-
-    // --- Strictness & Quality ---
     "strict": true,
     "forceConsistentCasingInFileNames": true,
-    "noEmit": true, // We only use tsc for type checking, not compiling
+    "noEmit": true,
     "esModuleInterop": true,
-    "skipLibCheck": true, // Skips type checking of declaration files in node_modules
-
-    // --- Next.js Specific Requirements ---
+    "skipLibCheck": true,
     "allowJs": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
@@ -31,6 +24,7 @@
       }
     ]
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", "scripts"] // Exclude scripts from Next.js's main compilation
+  // CRITICAL: We now include 'scripts' so TS knows about them
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "scripts/**/*.ts"],
+  "exclude": ["node_modules"]
 }

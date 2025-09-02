@@ -1,39 +1,18 @@
-// genkit.config.ts
-
-import { configureGenkit } from '@genkit-ai/core';
-import { firebase } from '@genkit-ai/firebase/plugin'; // Modern import path
+import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
-import { dotprompt } from '@genkit-ai/dotprompt';
-import { defineTool } from '@genkit-ai/tool';
-import * as fs from 'fs';
-import * as path from 'path';
-import { z } from 'zod';
+import { initializeApp } from 'firebase-admin/app';
 
-export default configureGenkit({
+// Initialize Firebase Admin SDK
+initializeApp();
+
+// Start with just the working plugins, add others later
+export const ai = genkit({
   plugins: [
-    googleAI(),
-    firebase(), // In modern Genkit, this often auto-configures from the environment
-    dotprompt({ dir: './src/ai/prompts' }),
+    googleAI(), // This should work
+    // Comment out problematic plugins temporarily:
+    // firebase plugin - will add back once we figure out the import
+    // dotprompt plugin - will add back once we figure out the import
   ],
-  // Define the directories where flows will be automatically discovered.
-  flowPath: 'src/ai/flows',
-  // Define tools available to all flows
-  tools: [
-    defineTool(
-      {
-        name: 'applyConstitution',
-        description: 'Retrieves the full text of the Project Constitution (CONTEXT.md).',
-        inputSchema: z.void(),
-        outputSchema: z.string(),
-      },
-      async () => {
-        const constitutionPath = path.join(process.cwd(), 'CONTEXT.md');
-        return fs.readFileSync(constitutionPath, 'utf-8');
-      }
-    ),
-  ],
-  logLevel: 'debug',
-  enableTracingAndMetrics: true,
-  flowStateStore: 'firebase',
-  traceStore: 'firebase',
 });
+
+// Once this works, we can add the other plugins one by one
