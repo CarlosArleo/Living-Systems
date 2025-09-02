@@ -1,0 +1,7 @@
+# Exclude logs, data, or old files
+logs/
+data/
+node_modules/
+.idx/ai/prototyper-thread.json.1
+context_backup/
+*.log
