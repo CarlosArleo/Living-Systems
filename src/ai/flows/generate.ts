@@ -6,7 +6,7 @@
 
 import { googleAI } from '@genkit-ai/googleai';
 import { z } from 'zod';
-import { ai } from '../genkit'; 
+import { ai } from '../genkit';
 
 const GenerateInputSchema = z.object({
   prompt: z.string().describe('The detailed Master Prompt for the generation task.'),
@@ -21,12 +21,12 @@ export const generateFlow = ai.defineFlow(
       code: z.string().describe('The generated code or artifact.'),
     }),
   },
-  async ({ prompt }: GenerateInput) => {
+  async (input: GenerateInput) => {
     console.log('[generateFlow] Initiating growth...');
     try {
       const llmResponse = await ai.generate({
         model: googleAI.model('gemini-1.5-pro'),
-        prompt: prompt,
+        prompt: input.prompt,
         config: { temperature: 0.2 },
       });
 

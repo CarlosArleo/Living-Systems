@@ -7,9 +7,11 @@
 import { googleAI } from '@genkit-ai/googleai';
 import { z } from 'zod';
 import { ai } from '../genkit';
+import dna from '../prompts/system_dna.prompt';
 
 const CritiqueInputSchema = z.object({
   code: z.string().describe('The generated code to be audited.'),
+  projectConstitution: z.string().describe('The full content of the CONTEXT.md file.'),
 });
 type CritiqueInput = z.infer<typeof CritiqueInputSchema>;
 
@@ -21,35 +23,39 @@ export const critiqueFlow = ai.defineFlow(
       feedback: z.string().describe('A detailed report of any material flaws found.'),
       pass: z.boolean().describe('True if the code is in equilibrium (PASS), false otherwise (FAIL).'),
     }),
-    // The `tools` property is not defined here, but in the ai.generate call.
   },
   async (input: CritiqueInput) => {
     console.log('[critiqueFlow] Sensing for dissonance...');
-    const { code } = input;
+    const { code, projectConstitution } = input;
 
     const critiquePrompt = `
-      You are the "Sensory Detector" organelle. Your purpose is to evaluate the provided code for any material flaws or dissonance against your intrinsic DNA (the Project Constitution), which is available to you as a tool.
+      ${dna}
 
-      A material flaw is a CRITICAL or non-negotiable violation, a clear security vulnerability, or a fatal logical error. IGNORE minor stylistic issues.
+      Your assigned role for this task is **The Sensory Detector (Critique)**.
 
-      Analyze the following code:
-      \`\`\`
+      Analyze the following code against the intrinsic DNA provided in the system prompt.
+      
+      ---
+      CODE TO CRITIQUE:
+      \`\`\`typescript
       ${code}
       \`\`\`
-
-      Provide your feedback and a final verdict. If there are no material flaws, you MUST respond with "pass: true".
+      ---
+      PROJECT CONSTITUTION (DNA):
+      ${projectConstitution}
+      ---
+      
+      Provide your feedback and a final verdict. If there are no material flaws, you MUST include "Verdict: PASS" in your response. Otherwise, include "Verdict: FAIL".
     `;
 
     const llmResponse = await ai.generate({
       model: googleAI.model('gemini-1.5-pro'),
       prompt: critiquePrompt,
       config: { temperature: 0.0 },
-      tools: ['applyConstitution'], // CORRECT: Tools are provided to the model here.
     });
 
     const responseText = llmResponse.text;
-    // A simple but effective way to determine the verdict
-    const pass = /pass:\s*true/i.test(responseText);
+    const pass = /verdict:\s*pass/i.test(responseText);
 
     return { feedback: responseText, pass };
   }

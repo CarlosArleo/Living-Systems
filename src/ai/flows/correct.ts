@@ -7,6 +7,7 @@
 import { googleAI } from '@genkit-ai/googleai';
 import { z } from 'zod';
 import { ai } from '../genkit';
+import dna from '../prompts/system_dna.prompt';
 
 const CorrectInputSchema = z.object({
   code: z.string().describe('The dissonant code that needs healing.'),
@@ -21,7 +22,6 @@ export const correctFlow = ai.defineFlow(
     outputSchema: z.object({
       correctedCode: z.string().describe('The regenerated, harmonious code.'),
     }),
-    // The `tools` property is not defined here, but in the ai.generate call.
   },
   async (input: CorrectInput) => {
     console.log('[correctFlow] Regenerating harmony...');
@@ -29,30 +29,36 @@ export const correctFlow = ai.defineFlow(
     const { code, feedback } = input;
 
     const correctionPrompt = `
-      You are the "Restorative Healer" organelle. You have received dissonant code and feedback signals. Your sole purpose is to regenerate the code to restore its harmony with your intrinsic DNA (the Project Constitution), which is available as a tool.
+      ${dna}
 
-      Address EVERY material flaw mentioned in the feedback. Do not introduce new features.
+      Your assigned role for this task is **The Restorative Healer (Correct)**.
+
+      You have received dissonant code and feedback signals. Your sole purpose is to regenerate the code to restore its harmony with your intrinsic DNA. Address EVERY material flaw mentioned in the feedback. Do not introduce new features.
 
       Dissonant Code:
-      \`\`\`
+      \`\`\`typescript
       ${code}
       \`\`\`
 
-      Feedback Signals to address:
+      Feedback Signals to Address:
       ---
       ${feedback}
       ---
 
-      Produce the corrected, harmonious code.
+      Produce the corrected, harmonious code. Output ONLY the raw code block.
     `;
 
     const llmResponse = await ai.generate({
       model: googleAI.model('gemini-1.5-pro'),
       prompt: correctionPrompt,
       config: { temperature: 0.2 },
-      tools: ['applyConstitution'], // CORRECT: Tools are provided to the model here.
     });
 
-    return { correctedCode: llmResponse.text };
+    // Extract only the code from the response, removing markdown backticks if present
+    const rawResponse = llmResponse.text;
+    const codeMatch = rawResponse.match(/```(?:typescript|tsx|)\n([\s\S]+)\n```/);
+    const correctedCode = codeMatch ? codeMatch[1].trim() : rawResponse.trim();
+
+    return { correctedCode };
   }
 );
