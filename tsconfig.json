@@ -1,18 +1,26 @@
 {
   "compilerOptions": {
+    // --- Target & Module System ---
     "target": "ES2022",
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
-    "allowJs": true,
-    "skipLibCheck": true,
-    "strict": true,
-    "noEmit": true,
-    "esModuleInterop": true,
+    "lib": ["dom", "dom.iterable", "esnext"],
     "module": "esnext",
-    "moduleResolution": "bundler",
+    "moduleResolution": "bundler", // Use 'bundler' for modern tools like Vite/Next.js
+
+    // --- Path Aliases (THE CRITICAL FIX) ---
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+
+    // --- Strictness & Quality ---
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true, // We only use tsc for type checking, not compiling
+    "esModuleInterop": true,
+    "skipLibCheck": true, // Skips type checking of declaration files in node_modules
+
+    // --- Next.js Specific Requirements ---
+    "allowJs": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "preserve",
@@ -21,23 +29,8 @@
       {
         "name": "next"
       }
-    ],
-    "paths": {
-      "@/*": [
-        "./src/*"
-      ]
-    }
+    ]
   },
-  "include": [
-    "next-env.d.ts",
-    "src/**/*.ts",
-    "src/**/*.tsx",
-    "scripts/orchestrator.ts",
-    "scripts/process-context.ts",
-    ".next/types/**/*.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "functions"
-  ]
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules", "scripts"] // Exclude scripts from Next.js's main compilation
 }
