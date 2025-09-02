@@ -20,10 +20,17 @@ const MapComponent = dynamic(() => import('@/components/map'), {
   loading: () => <div className="h-full w-full bg-background flex items-center justify-center"><p>Loading Map...</p></div>
 });
 
+// Added a proper type definition for Place
+type Place = {
+  id: string;
+  name: string;
+  [key: string]: any;
+};
 
 export default function Home() {
   const mapRef = React.useRef<MapRef>(null);
-  const [selectedPlace, setSelectedPlace] = React.useState<any | null>(null);
+  // Use the specific Place type for state
+  const [selectedPlace, setSelectedPlace] = React.useState<Place | null>(null);
   const [user, setUser] = React.useState<User | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [mapData, setMapData] = React.useState<any | null>(null);
@@ -90,8 +97,8 @@ export default function Home() {
         <AnalysisPanel 
           onPlaceChange={setSelectedPlace}
           selectedPlace={selectedPlace}
-          visibleLayers={visibleLayers}
           onLayerVisibilityChange={setVisibleLayers}
+          visibleLayers={visibleLayers}
         />
         <div className="absolute right-3 top-14 z-10 flex flex-col gap-2">
             <StoryPanel place={selectedPlace} />
