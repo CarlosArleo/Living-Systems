@@ -17,6 +17,12 @@ const CorrectInputSchema = z.object({
 });
 type CorrectInput = z.infer<typeof CorrectInputSchema>;
 
+// Utility to extract only the code block from the LLM's response.
+function extractCode(responseText: string): string {
+    const match = responseText.match(/```(?:typescript|tsx|javascript|js)?\s*\n([\s\S]+?)\n```/);
+    return match?.[1]?.trim() ?? responseText.trim();
+}
+
 export const correctFlow = ai.defineFlow(
   {
     name: 'correctFlow',
@@ -29,7 +35,7 @@ export const correctFlow = ai.defineFlow(
     console.log('[correctFlow] Regenerating harmony...');
 
     const { code, feedback } = input;
-    const dna = await fs.readFile(path.join(process.cwd(), 'src', 'ai', 'prompts', 'system_dna.prompt'), 'utf-8');
+    const dna = await fs.readFile(path.join(process.cwd(), 'docs', 'MASTER_SYSTEM_PROMPT.md'), 'utf-8');
 
 
     const correctionPrompt = `
@@ -58,10 +64,7 @@ export const correctFlow = ai.defineFlow(
       config: { temperature: 0.2 },
     });
 
-    // Extract only the code from the response, removing markdown backticks if present
-    const rawResponse = llmResponse.text;
-    const codeMatch = rawResponse.match(/```(?:typescript|tsx|)\n([\s\S]+)\n```/);
-    const correctedCode = codeMatch ? codeMatch[1].trim() : rawResponse.trim();
+    const correctedCode = extractCode(llmResponse.text);
 
     return { correctedCode };
   }
