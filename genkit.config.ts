@@ -17,10 +17,9 @@ const genkitConfig: GenkitOptions = {
     googleAI(),
     // Additional plugins would go here.
   ],
-  // No need to define stores, tools, or flows here in modern Genkit.
-  // Flows are automatically discovered, and tools are passed directly to prompts.
-  logLevel: 'debug',
-  enableTracingAndMetrics: true,
+  // No need to define logLevel, enableTracingAndMetrics, stores, tools, or flows here in modern Genkit.
+  // Flows are automatically discovered from the `src/ai/flows` directory.
+  // Telemetry and stores are configured by `enableFirebaseTelemetry()`.
 };
 
 // The modern `genkit()` constructor is used instead of `defineConfig`.
